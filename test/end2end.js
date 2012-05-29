@@ -1,4 +1,4 @@
-var MemJS = require("../mem");
+var MemJS = require("../client");
 var JSTest = require("../lib/test");
 
 JSTest.AddTestSuite({
