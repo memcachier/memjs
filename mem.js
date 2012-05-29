@@ -1,61 +1,21 @@
-net = require("net");
-header = require("./header");
-
-var Server = function(server, username, password) {
-  this.callbackQueue = [];
-  hostAr = server.split(":");
-  this.host = hostAr[0];
-  this.port = parseInt(hostAr[1]) || 11211;
-  this.username = username || process.env.MEMCACHIER_USERNAME || process.env.MEMCACHE_USERNAME
-  this.password = password || process.env.MEMCACHIER_PASSWORD || process.env.MEMCACHE_PASSWORD
-  var self = this;
-  this.readAndDo = function(dataBuf) {
-    var callback = self.callbackQueue.shift();
-    var responseHeader = header.fromBuffer(dataBuf);
-    if (responseHeader.status == 1) {
-      callback && callback(null);
-      return;
-    }
-    if (responseHeader.status != 0) {
-      console.log("Error: " + responseHeader.status);
-      callback && callback();
-      return
-    }
-    var extras = dataBuf.slice(24, 24 + responseHeader.extrasLength);
-    var key = dataBuf.slice(24 + responseHeader.extrasLength, 24 + responseHeader.keyLength + responseHeader.extrasLength);
-    var value = dataBuf.slice(24 + responseHeader.keyLength + responseHeader.extrasLength);
-    callback && callback(value, extras);
-  }
-  return this;
-}
-
-Server.prototype = {
-  sock: function(go) {
-    var self = this;
-    if (!this._socket) {
-      _socket = net.connect(this.port, this.host, function() {
-        _socket.on("data", self.readAndDo);
-        go(_socket);
-      });
-      this._socket = _socket;
-    } else {
-      go(this._socket);
-    }
-  },
-  close: function() {
-    this._socket && this._socket.end();
-  },
-}
+var header = require("./header");
+var errors = require("./protocol").errors;
+var Server = require("./server").Server;
 
 var Client = function(servers) {
   this.servers = servers;
 }
 
+var hashCode = function(str) {
+  for(var ret = 0, i = 0, len = str.length; i < len; i++) {
+    ret = (31 * ret + str.charCodeAt(i)) << 0;
+  }
+  return ret;
+};
+
 Client.prototype = {
   server: function(key) {
-    var serv = this.servers.shift();
-    this.servers.unshift(serv);
-    return serv;
+    return this.servers[hashCode(key) % this.servers.length];
   },
   get: function(key, callback) {
     var buf = new Buffer(24 + key.length);
@@ -69,10 +29,17 @@ Client.prototype = {
     header.toBuffer(requestHeader).copy(buf);
     buf.write(key, 24)
     var serv = this.server(key);
-    serv.sock(function(socket) {
-      serv.callbackQueue.unshift(callback);
-      socket.write(buf);
+    serv.once("response", function(response) {
+      switch (response.header.status) {
+      case  0:
+        callback(response.value, response.extras)
+        break;
+      default:
+        console.log(errors[response.header.status])
+        callback();
+      }
     });
+    serv.write(buf);
   },
   set: function(key, value, callback) {
     var buf = new Buffer(24 + key.length + 8 + value.length);
@@ -90,12 +57,19 @@ Client.prototype = {
     buf.write(key, 32);
     buf.write(value, 32 + key.length);
     var serv = this.server(key);
-    serv.sock(function(socket) {
-      serv.callbackQueue.unshift(callback);
-      socket.write(buf);
+    serv.once("response", function(response) {
+      switch (response.header.status) {
+      case  0:
+        callback(true)
+        break;
+      default:
+        console.log(errors[response.header.status])
+        callback();
+      }
     });
+    serv.write(buf);
   }
 }
 
-exports.Server = Server;
 exports.Client = Client;
+exports.Server = Server;
