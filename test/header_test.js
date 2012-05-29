@@ -1,5 +1,5 @@
-var header = require("../header");
-var JSTest = require("../lib/test");
+var header = require('../header');
+var JSTest = require('../lib/test');
 
 JSTest.AddTestSuite({
   testParseHeaderResponse: function() {

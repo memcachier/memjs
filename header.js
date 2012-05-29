@@ -1,7 +1,7 @@
 
 var fromBuffer = function(headerBuf) {
   if (!headerBuf) {
-    console.log("Cannot not parse empty buffer!");
+    console.log('Cannot not parse empty buffer!');
     return {};
   }
   return {

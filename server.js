@@ -1,7 +1,7 @@
-var header = require("./header");
-var net = require("net");
-var events = require("events");
-var util = require("util");
+var header = require('./header');
+var net = require('net');
+var events = require('events');
+var util = require('util');
 
 var Server = function(host, port, username, password) {
   events.EventEmitter.call(this)
@@ -29,9 +29,9 @@ Server.prototype.sock = function(go) {
   var self = this;
   if (!self._socket) {
     self._socket = net.connect(this.port, this.host, function() {
-      self._socket.on("data", function(dataBuf) {
+      self._socket.on('data', function(dataBuf) {
         var response = parseResponse(dataBuf);
-        self.emit("response", response);
+        self.emit('response', response);
       });
       go(self._socket);
     });
@@ -51,7 +51,7 @@ Server.prototype.close = function() {
 }
 
 Server.prototype.toString = function() {
-  return "<Server " + this.host + ":" + this.port + ">";
+  return '<Server ' + this.host + ':' + this.port + '>';
 }
 
 exports.Server = Server;
