@@ -12,6 +12,9 @@
     "node": "~v0.6.18"
   },
   "main": "./client",
+  "scripts": {
+    "test": "expresso test/*.js"
+  },
   "dependencies": {},
   "devDependencies": {}
 }
