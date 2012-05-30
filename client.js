@@ -3,6 +3,11 @@ var Server = require('./server').Server;
 var makeRequestBuffer = require('./utils').makeRequestBuffer;
 var hashCode = require('./utils').hashCode;
 
+// Client initializer takes a list of Servers.
+var Client = function(servers) {
+  this.servers = servers;
+}
+
 // Client
 // ------
 //
@@ -24,11 +29,6 @@ Client.create = function(serversStr, options) {
     return new Server(uriParts[0], parseInt(uriParts[1] || 11211));
   });
   return new Client(servers);
-}
-
-// Client initializer takes a list of Servers.
-var Client = function(servers) {
-  this.servers = servers;
 }
 
 // Chooses the server to talk to by hashing the given key.
