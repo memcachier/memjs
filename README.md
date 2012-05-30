@@ -33,6 +33,14 @@ have a version of memcacached available for installation:
 
     $ brew install memcached
 
+## Usage ##
+
+You can start using MemJS immediately from the node console:
+
+    $ var memjs = require('memjs')
+    $ var client = memjs.Client.create()
+    $ client.set('hello')
+
 ## Configuration ##
 
 MemJS understands the following environment variables:
@@ -44,6 +52,13 @@ MemJS understands the following environment variables:
 * `MEMCACHE_PASSWORD` - used if `MEMCACHIER_PASSWORD` is not present
 
 Environment variables are only used as a fallback for explicit parameters.
+
+## TODOS ##
+
+* Handle socket errors and retries
+* Add more commands (add, replace, delete, increment, decrement, flush)
+* Support expiration and flags
+* Support CAS
 
 ## Copyright ##
 
