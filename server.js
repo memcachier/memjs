@@ -4,15 +4,16 @@ var events = require('events');
 var util = require('util');
 var makeRequestBuffer = require('./utils').makeRequestBuffer;
 var parseMessage = require('./utils').parseMessage;
+var merge = require('./utils').merge;
 
 var Server = function(host, port, options) {
   events.EventEmitter.call(this)
   this.responseBuffer = new Buffer([]);
   this.host = host;
   this.port = port;
-  options = options || {};
-  this.username = options.username || process.env.MEMCACHIER_USERNAME || process.env.MEMCACHE_USERNAME
-  this.password = options.password || process.env.MEMCACHIER_PASSWORD || process.env.MEMCACHE_PASSWORD
+  this.options = merge(options || {}, {timeout: 0.5});;
+  this.username = this.options.username || process.env.MEMCACHIER_USERNAME || process.env.MEMCACHE_USERNAME
+  this.password = this.options.password || process.env.MEMCACHIER_PASSWORD || process.env.MEMCACHE_PASSWORD
   return this;
 }
 
@@ -74,6 +75,11 @@ Server.prototype.sock = function(go) {
     self._socket.on('error', function(error) {
       self._socket = undefined;
       self.emit('error', error);
+    });
+    self._socket.setTimeout(self.options.timeout * 1000, function() {
+      self._socket.end();
+      self._socket = undefined;
+      self.emit('error', {message:'hello'});
     });
   } else {
     go(self._socket, false);

@@ -7,7 +7,7 @@ var merge = require('./utils').merge;
 // Client initializer takes a list of Servers.
 var Client = function(servers, options) {
   this.servers = servers;
-  this.options = merge(options || {}, {retries: 2, expires: 0});
+  this.options = merge(options || {}, {retries: 2, expires: 0, timeout: 0.5});
 }
 
 // Client
@@ -96,7 +96,7 @@ Client.prototype.stats = function(callback) {
     serv.on('response', function statsHandler(response) {
       if (response.header.totalBodyLength == 0) {
         serv.removeListener('response', statsHandler);
-        callback && callback(result);
+        callback && callback(serv.host + ":" + serv.port, result);
         return;
       }
       switch (response.header.status) {
@@ -108,10 +108,17 @@ Client.prototype.stats = function(callback) {
         callback && callback();
       }
     });
+    serv.on('error', function() {
+      callback && callback(serv.host + ":" + serv.port, null);
+    });
     serv.write(request);
   }
 }
 
+// Perform a generic single response operation (get, set etc) on a server
+// serv: the server to perform the operation on
+// request: a buffer containing the request
+// callback
 Client.prototype.perform = function(serv, request, callback, retries) {
   retries = retries || this.options.retries
   origRetries = retries;
@@ -129,7 +136,7 @@ Client.prototype.perform = function(serv, request, callback, retries) {
   
   var responseHandler = function(response) {
     serv.removeListener('error', errorHandler);
-    callback(response);
+    callback && callback(response);
   };
   
   serv.once('response', responseHandler);

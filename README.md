@@ -55,7 +55,6 @@ Environment variables are only used as a fallback for explicit parameters.
 
 ## TODOS ##
 
-* Handle socket errors and retries
 * Add more commands (add, replace, delete, increment, decrement, flush)
 * Support expiration and flags
 * Support CAS
