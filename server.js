@@ -3,7 +3,7 @@ var net = require('net');
 var events = require('events');
 var util = require('util');
 var makeRequestBuffer = require('./utils').makeRequestBuffer;
-var parseResponse = require('./utils').parseResponse;
+var parseMessage = require('./utils').parseMessage;
 
 var Server = function(host, port, options) {
   events.EventEmitter.call(this)
@@ -38,7 +38,7 @@ Server.prototype.appendToBuffer = function(dataBuf) {
 }
 
 Server.prototype.responseHandler = function(dataBuf) {
-  var response = parseResponse(this.appendToBuffer(dataBuf));
+  var response = parseMessage(this.appendToBuffer(dataBuf));
   while (response) {
     if (response.header.opcode == 0x20) {
       this.saslAuth();
@@ -51,7 +51,7 @@ Server.prototype.responseHandler = function(dataBuf) {
     }
     var respLength = response.header.totalBodyLength + 24
     this.responseBuffer = this.responseBuffer.slice(respLength);
-    response = parseResponse(this.responseBuffer);
+    response = parseMessage(this.responseBuffer);
   }
 }
 
@@ -70,6 +70,10 @@ Server.prototype.sock = function(go) {
       } else {
         self.emit('authenticated');
       }
+    });
+    self._socket.on('error', function(error) {
+      self._socket = undefined;
+      self.emit('error', error);
     });
   } else {
     go(self._socket, false);

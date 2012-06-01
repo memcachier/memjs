@@ -24,7 +24,7 @@ exports.hashCode = function(str) {
   return ret;
 };
 
-exports.parseResponse = function(dataBuf) {
+exports.parseMessage = function(dataBuf) {
   if (dataBuf.length < 24) {
     return false;
   }
@@ -39,4 +39,11 @@ exports.parseResponse = function(dataBuf) {
   var value = dataBuf.slice(pointer, 24 + responseHeader.totalBodyLength);
   
   return {header: responseHeader, key: key, extras: extras, value: value};
+}
+
+exports.merge = function(original, deflt) {
+  for (var attr in deflt) {
+    original[attr] = original[attr] || deflt[attr]
+  }
+  return original;
 }

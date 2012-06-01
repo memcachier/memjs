@@ -2,10 +2,12 @@ var errors = require('./protocol').errors;
 var Server = require('./server').Server;
 var makeRequestBuffer = require('./utils').makeRequestBuffer;
 var hashCode = require('./utils').hashCode;
+var merge = require('./utils').merge;
 
 // Client initializer takes a list of Servers.
-var Client = function(servers) {
+var Client = function(servers, options) {
   this.servers = servers;
+  this.options = merge(options || {}, {retries: 2, expires: 0});
 }
 
 // Client
@@ -22,13 +24,14 @@ var Client = function(servers) {
 // The options hash may contain a username and password to pass to the servers
 // to use for SASL authentication.
 Client.create = function(serversStr, options) {
-  serversStr = serversStr || process.env.MEMCACHIER_SERVERS || process.env.MEMCACHE_SERVERS || "localhost:11211";
+  serversStr = serversStr || process.env.MEMCACHIER_SERVERS
+                          || process.env.MEMCACHE_SERVERS || "localhost:11211";
   var serverUris = serversStr.split(",");
   var servers = serverUris.map(function(uri) {
     var uriParts = uri.split(":");
-    return new Server(uriParts[0], parseInt(uriParts[1] || 11211));
+    return new Server(uriParts[0], parseInt(uriParts[1] || 11211), options);
   });
-  return new Client(servers);
+  return new Client(servers, options);
 }
 
 // Chooses the server to talk to by hashing the given key.
@@ -46,9 +49,9 @@ Client.prototype.server = function(key) {
 // different error, the error is logged to the console and the callback is
 // invoked with no arguments.
 Client.prototype.get = function(key, callback) {
-  var buf = makeRequestBuffer(0, key, '', '');
+  var request = makeRequestBuffer(0, key, '', '');
   var serv = this.server(key);
-  serv.once('response', function(response) {
+  this.perform(serv, request, function(response) {
     switch (response.header.status) {
     case  0:
       callback && callback(response.value, response.extras)
@@ -61,7 +64,6 @@ Client.prototype.get = function(key, callback) {
       callback && callback();
     }
   });
-  serv.write(buf);
 }
 
 // SET
@@ -69,9 +71,9 @@ Client.prototype.get = function(key, callback) {
 // Takes a key and value to put to memcache and a callback. The success of the
 // operation is signaled through the argument to the callback.
 Client.prototype.set = function(key, value, callback) {
-  var buf = makeRequestBuffer(1, key, '\0\0\0\0\0\0\0\0', value);
+  var request = makeRequestBuffer(1, key, '\0\0\0\0\0\0\0\0', value);
   var serv = this.server(key);
-  serv.once('response', function(response) {
+  this.perform(serv, request, function(response) {
     switch (response.header.status) {
     case  0:
       callback && callback(true)
@@ -81,14 +83,13 @@ Client.prototype.set = function(key, value, callback) {
       callback && callback();
     }
   });
-  serv.write(buf);
 }
 
 // STATS
 //
 // Invokes the callback with a dictionary of statistics from each server.
 Client.prototype.stats = function(callback) {
-  var buf = makeRequestBuffer(0x10, '', '', '');
+  var request = makeRequestBuffer(0x10, '', '', '');
   var result = {};
   for (i in this.servers) {
     var serv = this.servers[i];
@@ -107,8 +108,33 @@ Client.prototype.stats = function(callback) {
         callback && callback();
       }
     });
-    serv.write(buf);
+    serv.write(request);
   }
+}
+
+Client.prototype.perform = function(serv, request, callback, retries) {
+  retries = retries || this.options.retries
+  origRetries = retries;
+  var errorHandler = function(error) {
+    if (--retries > 0) {
+      serv.write(request);
+    } else {
+      serv.removeListener('error', errorHandler);
+      serv.removeListener('response', responseHandler);
+      console.log("MemJS: Server <" + serv.host + ":" + serv.port +
+                  "> failed after (" + origRetries +
+                  ") retries with error - " + error.message);
+    }
+  };
+  
+  var responseHandler = function(response) {
+    serv.removeListener('error', errorHandler);
+    callback(response);
+  };
+  
+  serv.once('response', responseHandler);
+  serv.on('error', errorHandler);
+  serv.write(request);
 }
 
 // Closes connections to all the servers.
