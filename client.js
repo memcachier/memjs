@@ -54,7 +54,7 @@ Client.prototype.get = function(key, callback) {
   this.perform(serv, request, function(response) {
     switch (response.header.status) {
     case  0:
-      callback && callback(response.value, response.extras)
+      callback && callback(response.val, response.extras)
       break;
     case 1:
       callback && callback(null, null);
@@ -75,11 +75,79 @@ Client.prototype.set = function(key, value, callback) {
   var serv = this.server(key);
   this.perform(serv, request, function(response) {
     switch (response.header.status) {
-    case  0:
+    case 0:
       callback && callback(true)
       break;
     default:
       console.log('MemJS SET: ' + errors[response.header.status]);
+      callback && callback();
+    }
+  });
+}
+
+// ADD
+//
+// Takes a key and value to put to memcache and a callback. The success of the
+// operation is signaled through the argument to the callback. The operation
+// only succeeds if the key is not already present in the cache.
+Client.prototype.add = function(key, value, callback) {
+  var request = makeRequestBuffer(2, key, '\0\0\0\0\0\0\0\0', value);
+  var serv = this.server(key);
+  this.perform(serv, request, function(response) {
+    switch (response.header.status) {
+    case 0:
+      callback && callback(true)
+      break;
+    case 2:
+      callback && callback(false);
+      break;
+    default:
+      console.log('MemJS ADD: ' + errors[response.header.status]);
+      callback && callback();
+    }
+  });
+}
+
+// REPLACE
+//
+// Takes a key and value to put to memcache and a callback. The success of the
+// operation is signaled through the argument to the callback. The operation
+// only succeeds if the key is already present in the cache.
+Client.prototype.replace = function(key, value, callback) {
+  var request = makeRequestBuffer(3, key, '\0\0\0\0\0\0\0\0', value);
+  var serv = this.server(key);
+  this.perform(serv, request, function(response) {
+    switch (response.header.status) {
+    case 0:
+      callback && callback(true)
+      break;
+    case 1:
+      callback && callback(false);
+      break;
+    default:
+      console.log('MemJS REPLACE: ' + errors[response.header.status]);
+      callback && callback();
+    }
+  });
+}
+
+// DELETE
+//
+// Takes a key to delete from memcache and a callback. The success of the
+// operation is signaled through the argument to the callback.
+Client.prototype.delete = function(key, callback) {
+  var request = makeRequestBuffer(4, key, '', '');
+  var serv = this.server(key);
+  this.perform(serv, request, function(response) {
+    switch (response.header.status) {
+    case  0:
+      callback && callback(true)
+      break;
+    case 1:
+      callback && callback(false);
+      break;
+    default:
+      console.log('MemJS DELETE: ' + errors[response.header.status]);
       callback && callback();
     }
   });
@@ -101,7 +169,7 @@ Client.prototype.stats = function(callback) {
       }
       switch (response.header.status) {
       case  0:
-        result[response.key.toString()] = response.value.toString();
+        result[response.key.toString()] = response.val.toString();
         break;
       default:
         console.log('MemJS STATS: ' + response.header.status);

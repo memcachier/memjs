@@ -11,7 +11,7 @@ exports.testGetSuccessful = function(beforeExit, assert) {
     assert.equal('hello', request.key);
     n += 1;
     dummyServer.emit('response',
-      {header: {status: 0}, value: 'world', extras: 'flagshere'});
+      {header: {status: 0}, val: 'world', extras: 'flagshere'});
   }
   
   var client = new MemJS.Client([dummyServer]);
@@ -59,7 +59,7 @@ exports.testSetSuccessful = function(beforeExit, assert) {
   dummyServer.write = function(requestBuf) {
     request = utils.parseMessage(requestBuf);
     assert.equal('hello', request.key);
-    assert.equal('world', request.value);
+    assert.equal('world', request.val);
     n += 1;
     dummyServer.emit('response', {header: {status: 0}});
   }
@@ -83,7 +83,7 @@ exports.testSetUnsuccessful = function(beforeExit, assert) {
   dummyServer.write = function(requestBuf) {
     request = utils.parseMessage(requestBuf);
     assert.equal('hello', request.key);
-    assert.equal('world', request.value);
+    assert.equal('world', request.val);
     n += 1;
     dummyServer.emit('response', {header: {status: 3}});
   }
@@ -91,6 +91,148 @@ exports.testSetUnsuccessful = function(beforeExit, assert) {
   var client = new MemJS.Client([dummyServer]);
   client.set('hello', 'world', function(val) {
     assert.equal(undefined, val);
+    callbn += 1;
+  });
+  
+  beforeExit(function() {
+    assert.equal(1, n,  'Ensure set is called');
+    assert.equal(1, callbn,  'Ensure callback is called');
+  });
+}
+
+exports.testAddSuccessful = function(beforeExit, assert) {
+  var n = 0;
+  var callbn = 0;
+  var dummyServer = new events.EventEmitter();
+  dummyServer.write = function(requestBuf) {
+    request = utils.parseMessage(requestBuf);
+    assert.equal('hello', request.key);
+    assert.equal('world', request.val);
+    n += 1;
+    dummyServer.emit('response', {header: {status: 0}});
+  }
+  
+  var client = new MemJS.Client([dummyServer]);
+  client.add('hello', 'world', function(val) {
+    assert.equal(true, val);
+    callbn += 1;
+  });
+  
+  beforeExit(function() {
+    assert.equal(1, n,  'Ensure set is called');
+    assert.equal(1, callbn,  'Ensure callback is called');
+  });
+}
+
+exports.testAddKeyExists = function(beforeExit, assert) {
+  var n = 0;
+  var callbn = 0;
+  var dummyServer = new events.EventEmitter();
+  dummyServer.write = function(requestBuf) {
+    request = utils.parseMessage(requestBuf);
+    assert.equal('hello', request.key);
+    assert.equal('world', request.val);
+    n += 1;
+    dummyServer.emit('response', {header: {status: 2}});
+  }
+  
+  var client = new MemJS.Client([dummyServer]);
+  client.add('hello', 'world', function(val) {
+    assert.equal(false, val);
+    callbn += 1;
+  });
+  
+  beforeExit(function() {
+    assert.equal(1, n,  'Ensure set is called');
+    assert.equal(1, callbn,  'Ensure callback is called');
+  });
+}
+
+exports.testReplaceSuccessful = function(beforeExit, assert) {
+  var n = 0;
+  var callbn = 0;
+  var dummyServer = new events.EventEmitter();
+  dummyServer.write = function(requestBuf) {
+    request = utils.parseMessage(requestBuf);
+    assert.equal('hello', request.key);
+    assert.equal('world', request.val);
+    n += 1;
+    dummyServer.emit('response', {header: {status: 0}});
+  }
+  
+  var client = new MemJS.Client([dummyServer]);
+  client.replace('hello', 'world', function(val) {
+    assert.equal(true, val);
+    callbn += 1;
+  });
+  
+  beforeExit(function() {
+    assert.equal(1, n,  'Ensure set is called');
+    assert.equal(1, callbn,  'Ensure callback is called');
+  });
+}
+
+exports.testReplaceKeyDNE = function(beforeExit, assert) {
+  var n = 0;
+  var callbn = 0;
+  var dummyServer = new events.EventEmitter();
+  dummyServer.write = function(requestBuf) {
+    request = utils.parseMessage(requestBuf);
+    assert.equal('hello', request.key);
+    assert.equal('world', request.val);
+    n += 1;
+    dummyServer.emit('response', {header: {status: 1}});
+  }
+  
+  var client = new MemJS.Client([dummyServer]);
+  client.replace('hello', 'world', function(val) {
+    assert.equal(false, val);
+    callbn += 1;
+  });
+  
+  beforeExit(function() {
+    assert.equal(1, n,  'Ensure set is called');
+    assert.equal(1, callbn,  'Ensure callback is called');
+  });
+}
+
+exports.testDeleteSuccessful = function(beforeExit, assert) {
+  var n = 0;
+  var callbn = 0;
+  var dummyServer = new events.EventEmitter();
+  dummyServer.write = function(requestBuf) {
+    request = utils.parseMessage(requestBuf);
+    assert.equal('hello', request.key);
+    n += 1;
+    dummyServer.emit('response', {header: {status: 0}});
+  }
+  
+  var client = new MemJS.Client([dummyServer]);
+  client.delete('hello', function(val) {
+    assert.equal(true, val);
+    callbn += 1;
+  });
+  
+  beforeExit(function() {
+    assert.equal(1, n,  'Ensure set is called');
+    assert.equal(1, callbn,  'Ensure callback is called');
+  });
+}
+
+exports.testDeleteKeyDNE = function(beforeExit, assert) {
+  var n = 0;
+  var callbn = 0;
+  var dummyServer = new events.EventEmitter();
+  dummyServer.write = function(requestBuf) {
+    request = utils.parseMessage(requestBuf);
+    assert.equal('hello', request.key);
+    n += 1;
+    dummyServer.emit('response', {header: {status: 1}});
+  }
+  
+  var client = new MemJS.Client([dummyServer]);
+  client.delete('hello', function(val) {
+    assert.equal(false, val);
     callbn += 1;
   });
   
@@ -110,8 +252,8 @@ exports.testStats = function(beforeExit, assert) {
     request = utils.parseMessage(requestBuf);
     assert.equal(0x10, request.header.opcode);
     n += 1;
-    dummyServer.emit('response', {header: {status: 0}, key: 'bytes', value: '1432'});
-    dummyServer.emit('response', {header: {status: 0}, key: 'count', value: '5432'});
+    dummyServer.emit('response', {header: {status: 0}, key: 'bytes', val: '1432'});
+    dummyServer.emit('response', {header: {status: 0}, key: 'count', val: '5432'});
     dummyServer.emit('response', {header: {status: 0, totalBodyLength: 0}});
   }
   

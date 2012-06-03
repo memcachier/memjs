@@ -36,9 +36,9 @@ exports.parseMessage = function(dataBuf) {
   var pointer = 24;
   var extras = dataBuf.slice(pointer, (pointer += responseHeader.extrasLength));
   var key = dataBuf.slice(pointer, (pointer += responseHeader.keyLength));
-  var value = dataBuf.slice(pointer, 24 + responseHeader.totalBodyLength);
+  var val = dataBuf.slice(pointer, 24 + responseHeader.totalBodyLength);
   
-  return {header: responseHeader, key: key, extras: extras, value: value};
+  return {header: responseHeader, key: key, extras: extras, val: val};
 }
 
 exports.merge = function(original, deflt) {
