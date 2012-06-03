@@ -11,7 +11,7 @@
   "engines": {
     "node": "~v0.6.18"
   },
-  "main": "./client",
+  "main": "./src/client",
   "scripts": {
     "test": "expresso test/*.js"
   },
