@@ -1,13 +1,12 @@
-var MemJS = require('../../client');
+var MemJS = require('memjs');
 var events = require('events');
-var utils = require('../../utils');
 
 exports.testGetSuccessful = function(beforeExit, assert) {
   var n = 0;
   var callbn = 0;
   var dummyServer = new events.EventEmitter();
   dummyServer.write = function(requestBuf) {
-    request = utils.parseMessage(requestBuf);
+    request = MemJS.Utils.parseMessage(requestBuf);
     assert.equal('hello', request.key);
     n += 1;
     dummyServer.emit('response',
@@ -32,7 +31,7 @@ exports.testGetNotFound = function(beforeExit, assert) {
   var callbn = 0;
   var dummyServer = new events.EventEmitter();
   dummyServer.write = function(requestBuf) {
-    request = utils.parseMessage(requestBuf);
+    request = MemJS.Utils.parseMessage(requestBuf);
     assert.equal('hello', request.key);
     n += 1;
     dummyServer.emit('response',
@@ -57,7 +56,7 @@ exports.testSetSuccessful = function(beforeExit, assert) {
   var callbn = 0;
   var dummyServer = new events.EventEmitter();
   dummyServer.write = function(requestBuf) {
-    request = utils.parseMessage(requestBuf);
+    request = MemJS.Utils.parseMessage(requestBuf);
     assert.equal('hello', request.key);
     assert.equal('world', request.val);
     n += 1;
@@ -81,7 +80,7 @@ exports.testSetUnsuccessful = function(beforeExit, assert) {
   var callbn = 0;
   var dummyServer = new events.EventEmitter();
   dummyServer.write = function(requestBuf) {
-    request = utils.parseMessage(requestBuf);
+    request = MemJS.Utils.parseMessage(requestBuf);
     assert.equal('hello', request.key);
     assert.equal('world', request.val);
     n += 1;
@@ -105,7 +104,7 @@ exports.testAddSuccessful = function(beforeExit, assert) {
   var callbn = 0;
   var dummyServer = new events.EventEmitter();
   dummyServer.write = function(requestBuf) {
-    request = utils.parseMessage(requestBuf);
+    request = MemJS.Utils.parseMessage(requestBuf);
     assert.equal('hello', request.key);
     assert.equal('world', request.val);
     n += 1;
@@ -129,7 +128,7 @@ exports.testAddKeyExists = function(beforeExit, assert) {
   var callbn = 0;
   var dummyServer = new events.EventEmitter();
   dummyServer.write = function(requestBuf) {
-    request = utils.parseMessage(requestBuf);
+    request = MemJS.Utils.parseMessage(requestBuf);
     assert.equal('hello', request.key);
     assert.equal('world', request.val);
     n += 1;
@@ -153,7 +152,7 @@ exports.testReplaceSuccessful = function(beforeExit, assert) {
   var callbn = 0;
   var dummyServer = new events.EventEmitter();
   dummyServer.write = function(requestBuf) {
-    request = utils.parseMessage(requestBuf);
+    request = MemJS.Utils.parseMessage(requestBuf);
     assert.equal('hello', request.key);
     assert.equal('world', request.val);
     n += 1;
@@ -177,7 +176,7 @@ exports.testReplaceKeyDNE = function(beforeExit, assert) {
   var callbn = 0;
   var dummyServer = new events.EventEmitter();
   dummyServer.write = function(requestBuf) {
-    request = utils.parseMessage(requestBuf);
+    request = MemJS.Utils.parseMessage(requestBuf);
     assert.equal('hello', request.key);
     assert.equal('world', request.val);
     n += 1;
@@ -201,7 +200,7 @@ exports.testDeleteSuccessful = function(beforeExit, assert) {
   var callbn = 0;
   var dummyServer = new events.EventEmitter();
   dummyServer.write = function(requestBuf) {
-    request = utils.parseMessage(requestBuf);
+    request = MemJS.Utils.parseMessage(requestBuf);
     assert.equal('hello', request.key);
     n += 1;
     dummyServer.emit('response', {header: {status: 0}});
@@ -224,7 +223,7 @@ exports.testDeleteKeyDNE = function(beforeExit, assert) {
   var callbn = 0;
   var dummyServer = new events.EventEmitter();
   dummyServer.write = function(requestBuf) {
-    request = utils.parseMessage(requestBuf);
+    request = MemJS.Utils.parseMessage(requestBuf);
     assert.equal('hello', request.key);
     n += 1;
     dummyServer.emit('response', {header: {status: 1}});
@@ -249,7 +248,7 @@ exports.testStats = function(beforeExit, assert) {
   dummyServer.host = "myhostname";
   dummyServer.port = 5544
   dummyServer.write = function(requestBuf) {
-    request = utils.parseMessage(requestBuf);
+    request = MemJS.Utils.parseMessage(requestBuf);
     assert.equal(0x10, request.header.opcode);
     n += 1;
     dummyServer.emit('response', {header: {status: 0}, key: 'bytes', val: '1432'});
