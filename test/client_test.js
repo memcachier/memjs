@@ -1,4 +1,4 @@
-var MemJS = require('memjs');
+var MemJS = require('../lib/memjs/client');
 var events = require('events');
 
 exports.testGetSuccessful = function(beforeExit, assert) {
