@@ -11,12 +11,12 @@
   "engines": {
     "node": "~v0.6.18"
   },
-  "main": "./lib/memjs/client",
+  "main": "./lib/memjs/memjs",
   "directories" : {
     "lib" : "./lib/memjs"
   },
   "scripts": {
-    "test": "expresso"
+    "test": "NODE_PATH=lib/memjs/ expresso"
   },
   "dependencies": {},
   "devDependencies": {"expresso": "0.9.2"}
