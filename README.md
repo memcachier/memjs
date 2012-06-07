@@ -55,7 +55,7 @@ Environment variables are only used as a fallback for explicit parameters.
 
 ## TODOS ##
 
-* Add more commands (add, replace, delete, increment, decrement, flush)
+* Add more commands (<strike>add</strike>, <strike>replace</strike>, <strike>delete</strike>, increment, decrement, flush)
 * Support expiration and flags
 * Support CAS
 
