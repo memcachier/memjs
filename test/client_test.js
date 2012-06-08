@@ -75,6 +75,31 @@ exports.testSetSuccessful = function(beforeExit, assert) {
   });
 }
 
+exports.testSetWithExpiration = function(beforeExit, assert) {
+  var n = 0;
+  var callbn = 0;
+  var dummyServer = new events.EventEmitter();
+  dummyServer.write = function(requestBuf) {
+    request = MemJS.Utils.parseMessage(requestBuf);
+    assert.equal('hello', request.key);
+    assert.equal('world', request.val);
+    assert.equal('\0\0\0\0\0\0\4\0', request.extras.toString());
+    n += 1;
+    dummyServer.emit('response', {header: {status: 0}});
+  }
+  
+  var client = new MemJS.Client([dummyServer], {expires: 1024});
+  client.set('hello', 'world', function(val) {
+    assert.equal(true, val);
+    callbn += 1;
+  });
+  
+  beforeExit(function() {
+    assert.equal(1, n,  'Ensure set is called');
+    assert.equal(1, callbn,  'Ensure callback is called');
+  });
+}
+
 exports.testSetUnsuccessful = function(beforeExit, assert) {
   var n = 0;
   var callbn = 0;
@@ -107,11 +132,12 @@ exports.testAddSuccessful = function(beforeExit, assert) {
     request = MemJS.Utils.parseMessage(requestBuf);
     assert.equal('hello', request.key);
     assert.equal('world', request.val);
+    assert.equal('\0\0\0\0\0\0\4\0', request.extras.toString());
     n += 1;
     dummyServer.emit('response', {header: {status: 0}});
   }
   
-  var client = new MemJS.Client([dummyServer]);
+  var client = new MemJS.Client([dummyServer], {expires: 1024});
   client.add('hello', 'world', function(val) {
     assert.equal(true, val);
     callbn += 1;
@@ -155,11 +181,12 @@ exports.testReplaceSuccessful = function(beforeExit, assert) {
     request = MemJS.Utils.parseMessage(requestBuf);
     assert.equal('hello', request.key);
     assert.equal('world', request.val);
+    assert.equal('\0\0\0\0\0\0\4\0', request.extras.toString());
     n += 1;
     dummyServer.emit('response', {header: {status: 0}});
   }
   
-  var client = new MemJS.Client([dummyServer]);
+  var client = new MemJS.Client([dummyServer], {expires: 1024});
   client.replace('hello', 'world', function(val) {
     assert.equal(true, val);
     callbn += 1;
