@@ -29,3 +29,4 @@ var testDumpHeader= function(be, assert) {
   expected = new Buffer([0x81, 1, 7, 0, 4, 0, 0, 1, 0, 0, 0, 9, 0, 0, 0, 0, 0x0a, 0, 0, 0, 0, 0, 0, 0]);
   assert.equal(header.toBuffer(responseHeader).toString(), expected.toString());
 }
+
