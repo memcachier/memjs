@@ -1,3 +1,4 @@
+var errors = require('protocol').errors;
 var MemJS = require('memjs');
 var events = require('events');
 
@@ -14,9 +15,10 @@ exports.testGetSuccessful = function(beforeExit, assert) {
   }
 
   var client = new MemJS.Client([dummyServer]);
-  client.get('hello', function(val, flags) {
+  client.get('hello', function(err, val, flags) {
     assert.equal('world', val);
     assert.equal('flagshere', flags);
+    assert.equal(null, err);
     callbn += 1;
   });
 
@@ -64,8 +66,9 @@ exports.testSetSuccessful = function(beforeExit, assert) {
   }
 
   var client = new MemJS.Client([dummyServer]);
-  client.set('hello', 'world', function(val) {
+  client.set('hello', 'world', function(err, val) {
     assert.equal(true, val);
+    assert.equal(null, err);
     callbn += 1;
   });
 
@@ -89,7 +92,8 @@ exports.testSetWithExpiration = function(beforeExit, assert) {
   }
 
   var client = new MemJS.Client([dummyServer], {expires: 1024});
-  client.set('hello', 'world', function(val) {
+  client.set('hello', 'world', function(err, val) {
+    assert.equal(null, err);
     assert.equal(true, val);
     callbn += 1;
   });
@@ -113,8 +117,9 @@ exports.testSetUnsuccessful = function(beforeExit, assert) {
   }
 
   var client = new MemJS.Client([dummyServer]);
-  client.set('hello', 'world', function(val) {
+  client.set('hello', 'world', function(err, val) {
     assert.equal(undefined, val);
+    assert.equal("MemJS SET: " + errors[3], err.message);
     callbn += 1;
   });
 
@@ -138,7 +143,8 @@ exports.testAddSuccessful = function(beforeExit, assert) {
   }
 
   var client = new MemJS.Client([dummyServer], {expires: 1024});
-  client.add('hello', 'world', function(val) {
+  client.add('hello', 'world', function(err, val) {
+    assert.equal(null, err);
     assert.equal(true, val);
     callbn += 1;
   });
@@ -162,7 +168,8 @@ exports.testAddKeyExists = function(beforeExit, assert) {
   }
 
   var client = new MemJS.Client([dummyServer]);
-  client.add('hello', 'world', function(val) {
+  client.add('hello', 'world', function(err, val) {
+    assert.equal(null, err);
     assert.equal(false, val);
     callbn += 1;
   });
@@ -187,7 +194,8 @@ exports.testReplaceSuccessful = function(beforeExit, assert) {
   }
 
   var client = new MemJS.Client([dummyServer], {expires: 1024});
-  client.replace('hello', 'world', function(val) {
+  client.replace('hello', 'world', function(err, val) {
+    assert.equal(null, err);
     assert.equal(true, val);
     callbn += 1;
   });
@@ -211,7 +219,8 @@ exports.testReplaceKeyDNE = function(beforeExit, assert) {
   }
 
   var client = new MemJS.Client([dummyServer]);
-  client.replace('hello', 'world', function(val) {
+  client.replace('hello', 'world', function(err, val) {
+    assert.equal(null, err);
     assert.equal(false, val);
     callbn += 1;
   });
@@ -234,7 +243,8 @@ exports.testDeleteSuccessful = function(beforeExit, assert) {
   }
 
   var client = new MemJS.Client([dummyServer]);
-  client.delete('hello', function(val) {
+  client.delete('hello', function(err, val) {
+    assert.equal(null, err);
     assert.equal(true, val);
     callbn += 1;
   });
@@ -257,7 +267,8 @@ exports.testDeleteKeyDNE = function(beforeExit, assert) {
   }
 
   var client = new MemJS.Client([dummyServer]);
-  client.delete('hello', function(val) {
+  client.delete('hello', function(err, val) {
+    assert.equal(null, err);
     assert.equal(false, val);
     callbn += 1;
   });
@@ -284,7 +295,8 @@ exports.testStats = function(beforeExit, assert) {
   }
 
   var client = new MemJS.Client([dummyServer]);
-  client.stats(function(server, stats) {
+  client.stats(function(err, server, stats) {
+    assert.equal(null, err);
     assert.equal('1432', stats.bytes);
     assert.equal('5432', stats.count);
     assert.equal('myhostname:5544', server);
