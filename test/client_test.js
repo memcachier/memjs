@@ -279,6 +279,25 @@ exports.testDeleteKeyDNE = function(beforeExit, assert) {
   });
 }
 
+exports.testFlush = function(beforeExit, assert) {
+  var n = 0;
+  var callbn = 0;
+  var dummyServer = new events.EventEmitter();
+  dummyServer.write = function(requestBuf) {
+    request = MemJS.Utils.parseMessage(requestBuf);
+    assert.equal(0x08, request.header.opcode);
+    n += 1;
+    dummyServer.emit('response', {header: {status: 1}});
+  }
+
+  var client = new MemJS.Client([dummyServer, dummyServer]);
+  client.flush(function(err, val) {
+    assert.equal(null, err);
+    assert.equal(true, val);
+  });
+
+}
+
 exports.testStats = function(beforeExit, assert) {
   var n = 0;
   var callbn = 0;
