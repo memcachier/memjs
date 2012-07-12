@@ -1,0 +1,6 @@
+# Version 0.3.0
+
+* Added `err` parameter to all callbacks from client
+* Flush command
+
+
