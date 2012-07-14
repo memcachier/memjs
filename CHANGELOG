@@ -1,4 +1,10 @@
-# Version 0.3.0
+# Change Log
+
+# Version 0.3.1
+
+* Fixed saslAuth to include mechanism (thanks to @shokai)
+
+## Version 0.3.0
 
 * Added `err` parameter to all callbacks from client
 * Flush command
