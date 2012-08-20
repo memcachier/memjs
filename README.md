@@ -1,9 +1,15 @@
-MemJS [![Build Status](https://secure.travis-ci.org/alevy/memjs.png)](http://travis-ci.org/alevy/memjs)
+MemJS [![Build Status](https://securetravis-ci.org/alevy/memjs.png)](http://travis-ci.org/alevy/memjs)
 =====
 
 MemJS is a pure Node.js client library for accessing the
 [MemCachier](http://memcachier.com/) service and other memcache servers. It
 uses the binary protocol and support SASL authentication.
+
+_NOTE_: while memjs works with MemCachier, MemCachier is configured only to
+accept connections from authorized hosts (e.g. Heroku's servers). For local
+development, use memcache -- no code changes are required to work with
+MemCachier once the app is deployed. See below for local installation
+instructions.
 
 ## Supported Node.js versions ##
 
@@ -39,7 +45,7 @@ You can start using MemJS immediately from the node console:
 
     $ var memjs = require('memjs')
     $ var client = memjs.Client.create()
-    $ client.set('hello')
+    $ client.get('hello', console.log)
 
 ## Configuration ##
 
