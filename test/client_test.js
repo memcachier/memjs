@@ -142,7 +142,7 @@ exports.testSetUnicode = function(beforeExit, assert) {
   }
   
   var client = new MemJS.Client([dummyServer]);
-  client.set('hello', 'éééoào', function(val) {
+  client.set('hello', 'éééoào', function(err, val) {
     assert.equal(true, val);
     callbn += 1;
   });
