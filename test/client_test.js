@@ -129,6 +129,30 @@ exports.testSetUnsuccessful = function(beforeExit, assert) {
   });
 }
 
+exports.testSetUnicode = function(beforeExit, assert) {
+  var n = 0;
+  var callbn = 0;
+  var dummyServer = new events.EventEmitter();
+  dummyServer.write = function(requestBuf) {
+    request = MemJS.Utils.parseMessage(requestBuf);
+    assert.equal('hello', request.key);
+    assert.equal('éééoào', request.val);
+    n += 1;
+    dummyServer.emit('response', {header: {status: 0}});
+  }
+  
+  var client = new MemJS.Client([dummyServer]);
+  client.set('hello', 'éééoào', function(val) {
+    assert.equal(true, val);
+    callbn += 1;
+  });
+  
+  beforeExit(function() {
+    assert.equal(1, n,  'Ensure set is called');
+    assert.equal(1, callbn,  'Ensure callback is called');
+  });
+}
+
 exports.testAddSuccessful = function(beforeExit, assert) {
   var n = 0;
   var callbn = 0;
