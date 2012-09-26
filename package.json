@@ -2,7 +2,7 @@
   "author": "Josh Breckman",
   "name": "memjs-concurrent",
   "description": "A memcache client for node using the binary protocol and SASL authentication",
-  "version": "0.4.1",
+  "version": "0.4.2",
   "homepage": "http://github.com/jbreckman/memjs",
   "repository": {
     "type": "git",
