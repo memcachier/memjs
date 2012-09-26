@@ -28,6 +28,44 @@ exports.testGetSuccessful = function(beforeExit, assert) {
   });
 }
 
+exports.testSynchronous = function(beforeExit, assert) {
+  
+  var n = 0;
+  var dummyServer = new events.EventEmitter();
+  dummyServer.write = function(requestBuf) {
+    request = MemJS.Utils.parseMessage(requestBuf);
+    var key = request.key.toString();
+    setTimeout(function() {
+      if (key == "key1")
+      {
+        dummyServer.emit('response',
+          {header: {status: 0}, val: 'value1', extras: 'flagshere'});
+      }
+      if (key == "key2")
+      {
+        dummyServer.emit('response',
+          {header: {status: 0}, val: 'value2', extras: 'flagshere'});
+      }
+    },100);
+  }
+
+  var responses = 0;
+  var client = new MemJS.Client([dummyServer]);
+  client.get("key1", function(err, response) {
+    assert.equal(response, "value1");
+    response++;
+    if (responses == 2)
+      beforeExit();
+  });
+  client.get("key2", function(err, response) {
+    assert.equal(response, "value2");
+    responses++;
+    if (responses == 2)
+      beforeExit();
+  });
+
+}
+
 exports.testGetNotFound = function(beforeExit, assert) {
   var n = 0;
   var callbn = 0;
