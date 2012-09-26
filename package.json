@@ -3,10 +3,10 @@
   "name": "memjs",
   "description": "A memcache client for node using the binary protocol and SASL authentication",
   "version": "0.4.0",
-  "homepage": "http://github.com/alevy/memjs",
+  "homepage": "http://github.com/jbreckman/memjs",
   "repository": {
     "type": "git",
-    "url": "git://github.com/alevy/memjs.git"
+    "url": "git://github.com/jbreckman/memjs.git"
   },
   "engines": {
     "node": ">=0.6.18"
