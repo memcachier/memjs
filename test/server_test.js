@@ -11,7 +11,7 @@ exports.testAuthListMechanisms = function(beforeExit, assert) {
       }
     };
   var opts = {username: 'user1', password: 'password'};
-  var server = new MemJS.Server('test.example.comr', 11211, opts);
+  var server = new MemJS.Server('test.example.com', 11211, opts);
   server._socket = dummySocket;
   server.listSasl();
 }
@@ -25,8 +25,31 @@ exports.testAuthenticate = function(beforeExit, assert) {
       }
     };
   var opts = {username: 'user1', password: 'password'};
-  var server = new MemJS.Server('test.example.comr', 11211, opts);
+  var server = new MemJS.Server('test.example.com', 11211, opts);
   server._socket = dummySocket;
   server.saslAuth();
 }
 
+exports.testResponseCallbackOrdering = function(beforeExit, assert) {
+  var server = new MemJS.Server();
+  var callbacksCalled = 0;
+
+  server.onResponse(function() {
+    assert.equal(0, callbacksCalled);
+    callbacksCalled += 1;
+  });
+  server.respond();
+
+  server.onResponse(function() {
+    assert.equal(1, callbacksCalled);
+    callbacksCalled += 1;
+  });
+
+  server.onResponse(function() {
+    assert.equal(2, callbacksCalled);
+    callbacksCalled += 1;
+  });
+
+  server.respond();
+  server.respond();
+}
