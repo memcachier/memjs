@@ -1,5 +1,10 @@
 # Change Log
 
+# Version 0.5.0
+
+* Better support for concurrent accesses
+* Fixed improper ordering of callbacks when there are multiple outstanding requests.
+
 # Version 0.4.0
 
 * Support for unicode keys, extras and values.
