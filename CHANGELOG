@@ -4,6 +4,7 @@
 
 * Better support for concurrent accesses
 * Fixed improper ordering of callbacks when there are multiple outstanding requests.
+* Request-specific expire (overrides default) in set/add/replace
 
 # Version 0.4.0
 
