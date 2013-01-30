@@ -1,7 +1,7 @@
 MemJS
 =====
 
-[![Build Status](https://securetravis-ci.org/alevy/memjs.png)](http://travis-ci.org/alevy/memjs?branch=master)
+[![Build Status](https://secure.travis-ci.org/alevy/memjs.png)](http://travis-ci.org/alevy/memjs?branch=master)
 
 MemJS is a pure Node.js client library for using memcache, in particular, the
 [MemCachier](http://memcachier.com/) service. It
