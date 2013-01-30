@@ -128,6 +128,29 @@ exports.testSetUnsuccessful = function(beforeExit, assert) {
   });
 }
 
+exports.testSetError = function(beforeExit, assert) {
+  var n = 0;
+  var callbn = 0;
+  var dummyServer = new MemJS.Server();
+  dummyServer.write = function(requestBuf) {
+    request = MemJS.Utils.parseMessage(requestBuf);
+    assert.equal('hello', request.key);
+    assert.equal('world', request.val);
+    n += 1;
+    dummyServer.error({message: "Shit's fucked!"});
+  }
+
+  var client = new MemJS.Client([dummyServer]);
+  client.set('hello', 'world', function(err, val) {
+    callbn += 1;
+  });
+
+  beforeExit(function() {
+    assert.equal(2, n,  'Ensure set is retried once');
+    assert.equal(0, callbn,  'Ensure callback is called');
+  });
+}
+
 exports.testSetUnicode = function(beforeExit, assert) {
   var n = 0;
   var callbn = 0;
