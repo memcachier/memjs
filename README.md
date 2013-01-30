@@ -1,17 +1,23 @@
-MemJS [![Build Status](https://securetravis-ci.org/alevy/memjs.png)](http://travis-ci.org/alevy/memjs)
+MemJS
 =====
 
-MemJS is a pure Node.js client library for accessing the
-[MemCachier](http://memcachier.com/) service and other memcache servers. It
+[![Build Status](https://securetravis-ci.org/alevy/memjs.png)](http://travis-ci.org/alevy/memjs?branch=master)
+
+MemJS is a pure Node.js client library for using memcache, in particular, the
+[MemCachier](http://memcachier.com/) service. It
 uses the binary protocol and support SASL authentication.
 
-_NOTE_: while memjs works with MemCachier, MemCachier is configured only to
-accept connections from authorized hosts (e.g. Heroku's servers). For local
-development, use memcache -- no code changes are required to work with
-MemCachier once the app is deployed. See below for local installation
-instructions.
+## TOC
 
-## Supported Node.js versions ##
+  1. [Requirements](#requirements)
+  2. [Installation](#installation)
+  3. [Configuration](#configuration)
+  4. [Usage](#usage)
+  5. [How to help](#contributing)
+
+## Requirements
+
+### Supported Node.js versions ###
 
 MemJS is tested to work with version 0.6 or higher of Node.js.
 
@@ -39,14 +45,6 @@ have a version of memcacached available for installation:
 
     $ brew install memcached
 
-## Usage ##
-
-You can start using MemJS immediately from the node console:
-
-    $ var memjs = require('memjs')
-    $ var client = memjs.Client.create()
-    $ client.get('hello', console.log)
-
 ## Configuration ##
 
 MemJS understands the following environment variables:
@@ -59,11 +57,47 @@ MemJS understands the following environment variables:
 
 Environment variables are only used as a fallback for explicit parameters.
 
-## TODOS ##
+## Usage ##
+
+You can start using MemJS immediately from the node console:
+
+    $ var memjs = require('memjs')
+    $ var client = memjs.Client.create()
+    $ client.get('hello', console.log)
+
+## Contributing
+
+The best way to contribut to the project is by reporting bugs and testing unpublished
+versions. If you have a staging or development app, the easiest way to do this is
+using the git repository as your `memjs` package dependency---in `package.json`:
+    
+    {
+      "name": "MyAppName",
+      ...
+      "dependencies": {
+        ...
+        "memjs": "git://github.com/alevy/memjs.git#master"
+        ...
+      }
+    }
+    
+If you find a bug, please report as an [issue](https://github.com/alevy/memjs/issues/new).
+If you fix it, please don't hesitate to send a pull request on GitHub or via
+[e-mail](http://www.kernel.org/pub/software/scm/git/docs/git-request-pull.html).
+
+Feature suggestions are also welcome! These includes suggestions about syntax and interface
+design.
+
+Finally, a great way to contribute is to implement a feature that's missing and send a pull
+request. The list below contains some planned features that have not been addressed yet. You
+can also implement a feature not a list if you think it would be good.
+
+### TODOS ###
 
 * Add more commands (increment, decrement, flush)
 * Support flags
 * Support CAS
+* Consistent hashing for keys and/or pluggable hashing algorithm
 
 ## Copyright ##
 
