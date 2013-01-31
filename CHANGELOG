@@ -1,5 +1,9 @@
 # Change Log
 
+# Version 0.5.1
+
+* Fixed retry logic on errors
+
 # Version 0.5.0
 
 * Better support for concurrent accesses
