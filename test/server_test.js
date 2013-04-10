@@ -34,22 +34,22 @@ exports.testResponseCallbackOrdering = function(beforeExit, assert) {
   var server = new MemJS.Server();
   var callbacksCalled = 0;
 
-  server.onResponse(function() {
+  server.onResponse(1, function() {
     assert.equal(0, callbacksCalled);
     callbacksCalled += 1;
   });
-  server.respond();
+  server.respond({header: {opaque: 1}});
 
-  server.onResponse(function() {
+  server.onResponse(2, function() {
     assert.equal(1, callbacksCalled);
     callbacksCalled += 1;
   });
 
-  server.onResponse(function() {
+  server.onResponse(3, function() {
     assert.equal(2, callbacksCalled);
     callbacksCalled += 1;
   });
 
-  server.respond();
-  server.respond();
+  server.respond({header: {opaque: 2}});
+  server.respond({header: {opaque: 3}});
 }
