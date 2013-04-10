@@ -10,7 +10,8 @@ exports.testGetSuccessful = function(beforeExit, assert) {
     assert.equal('hello', request.key);
     n += 1;
     dummyServer.respond(
-      {header: {status: 0}, val: 'world', extras: 'flagshere'});
+      {header: {status: 0, opaque: request.header.opaque},
+        val: 'world', extras: 'flagshere'});
   }
 
   var client = new MemJS.Client([dummyServer]);
@@ -36,7 +37,7 @@ exports.testGetNotFound = function(beforeExit, assert) {
     assert.equal('hello', request.key);
     n += 1;
     dummyServer.respond(
-      {header: {status: 1}});
+      {header: {status: 1, opaque: request.header.opaque}});
   }
 
   var client = new MemJS.Client([dummyServer]);
@@ -61,7 +62,7 @@ exports.testSetSuccessful = function(beforeExit, assert) {
     assert.equal('hello', request.key);
     assert.equal('world', request.val);
     n += 1;
-    dummyServer.respond({header: {status: 0}});
+    dummyServer.respond({header: {status: 0, opaque: request.header.opaque}});
   }
 
   var client = new MemJS.Client([dummyServer]);
@@ -87,7 +88,7 @@ exports.testSetWithExpiration = function(beforeExit, assert) {
     assert.equal('world', request.val);
     assert.equal('\0\0\0\0\0\0\4\0', request.extras.toString());
     n += 1;
-    dummyServer.respond({header: {status: 0}});
+    dummyServer.respond({header: {status: 0, opaque: request.header.opaque}});
   }
 
   var client = new MemJS.Client([dummyServer], {expires: 1024});
@@ -112,7 +113,7 @@ exports.testSetUnsuccessful = function(beforeExit, assert) {
     assert.equal('hello', request.key);
     assert.equal('world', request.val);
     n += 1;
-    dummyServer.respond({header: {status: 3}});
+    dummyServer.respond({header: {status: 3, opaque: request.header.opaque}});
   }
 
   var client = new MemJS.Client([dummyServer]);
@@ -137,7 +138,7 @@ exports.testSetError = function(beforeExit, assert) {
     assert.equal('hello', request.key);
     assert.equal('world', request.val);
     n += 1;
-    dummyServer.error({message: "Shit's fucked!"});
+    dummyServer.error({message: "This is an expected error."});
   }
 
   var client = new MemJS.Client([dummyServer]);
@@ -160,7 +161,7 @@ exports.testSetUnicode = function(beforeExit, assert) {
     assert.equal('hello', request.key);
     assert.equal('éééoào', request.val);
     n += 1;
-    dummyServer.respond({header: {status: 0}});
+    dummyServer.respond({header: {status: 0, opaque: request.header.opaque}});
   }
 
   var client = new MemJS.Client([dummyServer]);
@@ -185,7 +186,7 @@ exports.testAddSuccessful = function(beforeExit, assert) {
     assert.equal('world', request.val);
     assert.equal('\0\0\0\0\0\0\4\0', request.extras.toString());
     n += 1;
-    dummyServer.respond({header: {status: 0}});
+    dummyServer.respond({header: {status: 0, opaque: request.header.opaque}});
   }
 
   var client = new MemJS.Client([dummyServer], {expires: 1024});
@@ -210,7 +211,7 @@ exports.testAddKeyExists = function(beforeExit, assert) {
     assert.equal('hello', request.key);
     assert.equal('world', request.val);
     n += 1;
-    dummyServer.respond({header: {status: 2}});
+    dummyServer.respond({header: {status: 2, opaque: request.header.opaque}});
   }
 
   var client = new MemJS.Client([dummyServer]);
@@ -236,7 +237,7 @@ exports.testReplaceSuccessful = function(beforeExit, assert) {
     assert.equal('world', request.val);
     assert.equal('\0\0\0\0\0\0\4\0', request.extras.toString());
     n += 1;
-    dummyServer.respond({header: {status: 0}});
+    dummyServer.respond({header: {status: 0, opaque: request.header.opaque}});
   }
 
   var client = new MemJS.Client([dummyServer], {expires: 1024});
@@ -261,7 +262,7 @@ exports.testReplaceKeyDNE = function(beforeExit, assert) {
     assert.equal('hello', request.key);
     assert.equal('world', request.val);
     n += 1;
-    dummyServer.respond({header: {status: 1}});
+    dummyServer.respond({header: {status: 1, opaque: request.header.opaque}});
   }
 
   var client = new MemJS.Client([dummyServer]);
@@ -285,7 +286,7 @@ exports.testDeleteSuccessful = function(beforeExit, assert) {
     request = MemJS.Utils.parseMessage(requestBuf);
     assert.equal('hello', request.key);
     n += 1;
-    dummyServer.respond({header: {status: 0}});
+    dummyServer.respond({header: {status: 0, opaque: request.header.opaque}});
   }
 
   var client = new MemJS.Client([dummyServer]);
@@ -309,7 +310,7 @@ exports.testDeleteKeyDNE = function(beforeExit, assert) {
     request = MemJS.Utils.parseMessage(requestBuf);
     assert.equal('hello', request.key);
     n += 1;
-    dummyServer.respond({header: {status: 1}});
+    dummyServer.respond({header: {status: 1, opaque: request.header.opaque}});
   }
 
   var client = new MemJS.Client([dummyServer]);
@@ -333,7 +334,7 @@ exports.testFlush = function(beforeExit, assert) {
     request = MemJS.Utils.parseMessage(requestBuf);
     assert.equal(0x08, request.header.opcode);
     n += 1;
-    dummyServer.respond({header: {status: 1}});
+    dummyServer.respond({header: {status: 1, opaque: request.header.opaque}});
   }
 
   var client = new MemJS.Client([dummyServer, dummyServer]);
@@ -354,11 +355,14 @@ exports.testStats = function(beforeExit, assert) {
     request = MemJS.Utils.parseMessage(requestBuf);
     assert.equal(0x10, request.header.opcode);
     n += 1;
-    dummyServer.respond({header: {status: 0, totalBodyLength: 9},
+    dummyServer.respond({header: {status: 0, totalBodyLength: 9,
+                                  opaque: request.header.opaque},
                         key: 'bytes', val: '1432'});
-    dummyServer.respond({header: {status: 0, totalBodyLength: 9},
+    dummyServer.respond({header: {status: 0, totalBodyLength: 9,
+                                  opaque: request.header.opaque},
                         key: 'count', val: '5432'});
-    dummyServer.respond({header: {status: 0, totalBodyLength: 0}});
+    dummyServer.respond({header: {status: 0, totalBodyLength: 0,
+                                  opaque: request.header.opaque}});
   }
 
   var client = new MemJS.Client([dummyServer]);
