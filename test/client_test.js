@@ -138,7 +138,7 @@ exports.testSetError = function(beforeExit, assert) {
     assert.equal('hello', request.key);
     assert.equal('world', request.val);
     n += 1;
-    dummyServer.error({message: "Shit's fucked!"});
+    dummyServer.error({message: "This is an expected error."});
   }
 
   var client = new MemJS.Client([dummyServer]);
