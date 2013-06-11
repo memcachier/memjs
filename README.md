@@ -94,7 +94,6 @@ can also implement a feature not a list if you think it would be good.
 
 ### TODOS ###
 
-* Add more commands (increment, decrement, flush)
 * Support flags
 * Support CAS
 * Consistent hashing for keys and/or pluggable hashing algorithm
