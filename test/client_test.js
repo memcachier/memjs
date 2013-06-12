@@ -380,3 +380,54 @@ exports.testStats = function(beforeExit, assert) {
   });
 }
 
+exports.testIncrementSuccessful = function(beforeExit, assert) {
+  var callbn = 0; 
+
+  var client = new MemJS.Client.create();
+  client.set('number-increment-test', 15, function(err, val) {
+    assert.equal(true, val);
+    assert.equal(null, err);
+    callbn += 1;
+    client.increment('number-increment-test', 5, function(err, val){
+      callbn += 1;
+      assert.equal(true, val);
+      assert.equal(null, err);
+      client.get('number-increment-test', function(err, val){
+        assert.equal('20', val.toString());
+        assert.equal(null, err);
+        callbn +=1;
+        client.close();
+      });
+    });
+  });
+
+  beforeExit(function() {
+    assert.equal(3, callbn,  'Ensure callbacks are called');
+  });
+}
+
+exports.testDecrementSuccessful = function(beforeExit, assert) {
+  var callbn = 0; 
+
+  var client = new MemJS.Client.create();
+  client.set('number-decrement-test', 15, function(err, val) {
+    assert.equal(true, val);
+    assert.equal(null, err);
+    callbn += 1;
+    client.decrement('number-decrement-test', 5, function(err, val){
+      callbn += 1;
+      assert.equal(true, val);
+      assert.equal(null, err);
+      client.get('number-decrement-test', function(err, val){
+        assert.equal('10', val.toString());
+        assert.equal(null, err);
+        callbn +=1;
+        client.close();
+      });
+    });
+  });
+
+  beforeExit(function() {
+    assert.equal(3, callbn,  'Ensure callbacks are called');
+  });
+}
