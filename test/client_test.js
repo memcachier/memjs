@@ -381,53 +381,58 @@ exports.testStats = function(beforeExit, assert) {
 }
 
 exports.testIncrementSuccessful = function(beforeExit, assert) {
-  var callbn = 0; 
+  var n = 0;
+  var callbn = 0;
+  var dummyServer = new MemJS.Server();
+  dummyServer.write = function(requestBuf) {
+    request = MemJS.Utils.parseMessage(requestBuf);
+    assert.equal(5, request.header.opcode);
+    assert.equal('number-increment-test', request.key);
+    assert.equal('', request.val);
+    assert.equal('\0\0\0\0\0\0\0\5\0\0\0\0\0\0\0\0\0\0\0\0',
+                 request.extras.toString());
+    n += 1;
+    dummyServer.respond({header: {status: 0, opaque: request.header.opaque}});
+  }
 
-  var client = new MemJS.Client.create();
-  client.set('number-increment-test', 15, function(err, val) {
+  var client = new MemJS.Client([dummyServer]);
+  client.increment('number-increment-test', 5, function(err, val){
+    callbn += 1;
     assert.equal(true, val);
     assert.equal(null, err);
-    callbn += 1;
-    client.increment('number-increment-test', 5, function(err, val){
-      callbn += 1;
-      assert.equal(true, val);
-      assert.equal(null, err);
-      client.get('number-increment-test', function(err, val){
-        assert.equal('20', val.toString());
-        assert.equal(null, err);
-        callbn +=1;
-        client.close();
-      });
-    });
   });
 
   beforeExit(function() {
-    assert.equal(3, callbn,  'Ensure callbacks are called');
+    assert.equal(1, callbn,  'Ensure callbacks are called');
+    assert.equal(1, n,       'Ensure incr is called');
   });
 }
 
 exports.testDecrementSuccessful = function(beforeExit, assert) {
-  var callbn = 0; 
+  var n = 0;
+  var callbn = 0;
+  var dummyServer = new MemJS.Server();
+  dummyServer.write = function(requestBuf) {
+    request = MemJS.Utils.parseMessage(requestBuf);
+    assert.equal(6, request.header.opcode);
+    assert.equal('number-decrement-test', request.key);
+    assert.equal('', request.val);
+    assert.equal('\0\0\0\0\0\0\0\5\0\0\0\0\0\0\0\0\0\0\0\0',
+                 request.extras.toString());
+    n += 1;
+    dummyServer.respond({header: {status: 0, opaque: request.header.opaque}});
+  }
 
-  var client = new MemJS.Client.create();
-  client.set('number-decrement-test', 15, function(err, val) {
+  var client = new MemJS.Client([dummyServer]);
+  client.decrement('number-decrement-test', 5, function(err, val){
+    callbn += 1;
     assert.equal(true, val);
     assert.equal(null, err);
-    callbn += 1;
-    client.decrement('number-decrement-test', 5, function(err, val){
-      callbn += 1;
-      assert.equal(true, val);
-      assert.equal(null, err);
-      client.get('number-decrement-test', function(err, val){
-        assert.equal('10', val.toString());
-        assert.equal(null, err);
-        callbn +=1;
-        client.close();
-      });
-    });
   });
 
   beforeExit(function() {
-    assert.equal(3, callbn,  'Ensure callbacks are called');
+    assert.equal(1, callbn,  'Ensure callbacks are called');
+    assert.equal(1, n,       'Ensure decr is called');
   });
 }
+
