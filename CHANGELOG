@@ -1,5 +1,12 @@
 # Change Log
 
+# Version 0.7.0
+* Various bug fixes
+* Increment and decrement commands
+
+# Version 0.6.0
+* Asynchronous response handling
+
 # Version 0.5.1
 
 * Fixed retry logic on errors
