@@ -14,7 +14,7 @@ exports.testParseHeaderResponse = function(be, assert) {
   assert.equal(new Buffer([0x0a, 0, 0, 0, 0, 0, 0, 0]).toString(), responseHeader.cas);
 }
 
-var testDumpHeader= function(be, assert) {
+exports.testDumpHeader = function(be, assert) {
   responseHeader = {
     magic: 0x81,
     opcode: 1,
@@ -27,6 +27,21 @@ var testDumpHeader= function(be, assert) {
     cas: new Buffer([0x0a, 0, 0, 0, 0, 0, 0, 0])
   }
   expected = new Buffer([0x81, 1, 7, 0, 4, 0, 0, 1, 0, 0, 0, 9, 0, 0, 0, 0, 0x0a, 0, 0, 0, 0, 0, 0, 0]);
+  assert.equal(header.toBuffer(responseHeader).toString(), expected.toString());
+}
+
+exports.testDumpHeaderNoCas = function(be, assert) {
+  responseHeader = {
+    magic: 0x81,
+    opcode: 0,
+    keyLength: 0x0,
+    extrasLength: 0,
+    dataType: 0,
+    status: 0,
+    totalBodyLength: 0,
+    opaque: 0
+  }
+  expected = new Buffer([0x81, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
   assert.equal(header.toBuffer(responseHeader).toString(), expected.toString());
 }
 
