@@ -148,7 +148,7 @@ exports.testSetError = function(beforeExit, assert) {
 
   beforeExit(function() {
     assert.equal(2, n,  'Ensure set is retried once');
-    assert.equal(0, callbn,  'Ensure callback is called');
+    assert.equal(1, callbn,  'Ensure callback is called ' + callbn);
   });
 }
 
