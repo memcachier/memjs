@@ -1,5 +1,8 @@
 # Change Log
 
+# Version 0.7.1
+* Properly pass errors to callback on server error
+
 # Version 0.7.0
 * Various bug fixes
 * Increment and decrement commands
