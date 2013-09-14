@@ -24,10 +24,28 @@ exports.testAuthenticate = function(beforeExit, assert) {
         assert.equal(expectedBuf.toString(), buf.toString());
       }
     };
-  var opts = {username: 'user1', password: 'password'};
-  var server = new MemJS.Server('test.example.com', 11211, opts);
+  var server = new MemJS.Server('test.example.com', 11211,
+                                'user1', 'password', {});
   server._socket = dummySocket;
   server.saslAuth();
+}
+
+exports.testSetSaslCredentials = function(beforeExit, assert) {
+  var server = new MemJS.Server('test.example.com', 11211, undefined,
+      undefined, {username: 'user1', password: 'password'});
+  assert.equal('user1', server.username);
+  assert.equal('password', server.password);
+
+  var server = new MemJS.Server('test.example.com', 11211, 'user2',
+      'password2', {username: 'user1', password: 'password'});
+  assert.equal('user2', server.username);
+  assert.equal('password2', server.password);
+
+  var server = new MemJS.Server('test.example.com', 11211);
+  assert.equal(process.env.MEMCACHIER_USERNAME ||
+                process.env.MEMCACHE_USERNAME, server.username);
+  assert.equal(process.env.MEMCACHIER_PASSWORD ||
+                process.env.MEMCACHE_PASSWORD, server.password);
 }
 
 exports.testResponseCallbackOrdering = function(beforeExit, assert) {
