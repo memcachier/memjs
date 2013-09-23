@@ -330,6 +330,8 @@ exports.testFlush = function(beforeExit, assert) {
   var n = 0;
   var callbn = 0;
   var dummyServer = new MemJS.Server();
+  dummyServer.host = "example.com";
+  dummyServer.port = 1234;
   dummyServer.write = function(requestBuf) {
     request = MemJS.Utils.parseMessage(requestBuf);
     assert.equal(0x08, request.header.opcode);
@@ -338,9 +340,9 @@ exports.testFlush = function(beforeExit, assert) {
   }
 
   var client = new MemJS.Client([dummyServer, dummyServer]);
-  client.flush(function(err, val) {
+  client.flush(function(err, results) {
     assert.equal(null, err);
-    assert.equal(true, val);
+    assert.equal(true, results['example.com:1234']);
   });
 
 }
