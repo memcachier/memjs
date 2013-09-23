@@ -7,6 +7,8 @@ MemJS is a pure Node.js client library for using memcache, in particular, the
 [MemCachier](http://memcachier.com/) service. It
 uses the binary protocol and support SASL authentication.
 
+Documentation can be found here: [http://amitlevy.com/projects/memjs/][http://amitlevy.com/projects/memjs/]
+
 ## TOC
 
   1. [Requirements](#requirements)
