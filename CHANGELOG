@@ -1,5 +1,11 @@
 # Change Log
 
+# Version 0.8.0
+* Instead of emitting an error on socket timeout, call `error`.
+
+# Version 0.7.2
+* Fixed showstopping typo!
+
 # Version 0.7.1
 * Properly pass errors to callback on server error
 
