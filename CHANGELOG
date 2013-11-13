@@ -1,8 +1,11 @@
 # Change Log
 
+# Version 0.8.1
+* Support failover
+* Fix corner case bugs when socket becomes undefined
+
 # Version 0.8.0
 * Instead of emitting an error on socket timeout, call `error`.
-* Fix corner case bugs when socket becomes undefined
 
 # Version 0.7.2
 * Fixed showstopping typo!
