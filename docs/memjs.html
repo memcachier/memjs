@@ -50,7 +50,8 @@ See <code>Client.create</code> for details.</p>
             <div class="content"><div class='highlight'><pre><span class="keyword">var</span> Client = <span class="keyword">function</span>(servers, options) {
   <span class="keyword">this</span>.servers = servers;
   <span class="keyword">this</span>.seq = <span class="number">0</span>;
-  <span class="keyword">this</span>.options = merge(options || {}, {retries: <span class="number">2</span>, expires: <span class="number">0</span>, logger: console});
+  <span class="keyword">this</span>.options = merge(options || {},
+      {failoverTime: <span class="number">60</span>, retries: <span class="number">2</span>, expires: <span class="number">0</span>, logger: console});
 }</pre></div></div>
             
         </li>
@@ -74,7 +75,10 @@ variable, <code>MEMCACHE_SERVERS</code> environment variable or <code>&quot;loca
 <li><code>expires</code> - the default expiration in seconds to use (default 0 - never
 expire). If <code>expires</code> is greater than 30 days (60 x 60 x 24 x 30), it is
 treated as a UNIX time (number of seconds since January 1, 1970).</li>
-<li><p><code>logger</code> - a logger object that responds to</p>
+<li><code>logger</code> - a logger object that responds to</li>
+<li><code>failover</code> - whether to failover to next server. Defaults to false.</li>
+<li><p><code>failoverTime</code> - how much to wait until retring a failed server. Default</p>
+<pre><code>             is 60 seconds.</code></pre>
 <pre><code>  log(msg1[, msg2[, msg3[...]]])</code></pre>
 <p>Defaults to <code>console</code>.</p>
 </li>
@@ -92,7 +96,7 @@ treated as a UNIX time (number of seconds since January 1, 1970).</li>
   <span class="keyword">var</span> servers = serverUris.map(<span class="keyword">function</span>(uri) {
     <span class="keyword">var</span> uriParts = uri.split(<span class="string">"@"</span>);
     <span class="keyword">var</span> hostPort = uriParts[uriParts.length - <span class="number">1</span>].split(<span class="string">":"</span>);
-    <span class="keyword">var</span> userPass = (uriParts[uriParts.lenght - <span class="number">2</span>] || <span class="string">""</span>).split(<span class="string">":"</span>);
+    <span class="keyword">var</span> userPass = (uriParts[uriParts.length - <span class="number">2</span>] || <span class="string">""</span>).split(<span class="string">":"</span>);
     <span class="keyword">return</span> <span class="keyword">new</span> Server(hostPort[<span class="number">0</span>], parseInt(hostPort[<span class="number">1</span>] || <span class="number">11211</span>), userPass[<span class="number">0</span>], userPass[<span class="number">1</span>], options);
   });
   <span class="keyword">return</span> <span class="keyword">new</span> Client(servers, options);
@@ -114,7 +118,18 @@ mechanisms</p>
             </div>
             
             <div class="content"><div class='highlight'><pre>Client.prototype.server = <span class="keyword">function</span>(key) {
-  <span class="keyword">return</span> <span class="keyword">this</span>.servers[hashCode(key) % <span class="keyword">this</span>.servers.length];
+  <span class="keyword">var</span> origIdx = hashCode(key) % <span class="keyword">this</span>.servers.length;
+  <span class="keyword">var</span> idx = origIdx;
+  <span class="keyword">var</span> serv = <span class="keyword">this</span>.servers[idx];
+  <span class="keyword">while</span> (serv.wakeupAt &amp;&amp;
+      serv.wakeupAt &gt; Date.now()) {
+    idx = (idx + <span class="number">1</span>) % <span class="keyword">this</span>.servers.length;
+    <span class="keyword">if</span> (idx == origIdx) {
+      <span class="keyword">return</span> <span class="literal">null</span>;
+    }
+    serv = <span class="keyword">this</span>.servers[idx];
+  }
+  <span class="keyword">return</span> serv;
 }</pre></div></div>
             
         </li>
@@ -148,11 +163,10 @@ with null for both arguments and no error.</p>
             <div class="content"><div class='highlight'><pre>Client.prototype.get = <span class="keyword">function</span>(key, callback) {
   <span class="keyword">this</span>.seq++;
   <span class="keyword">var</span> request = makeRequestBuffer(<span class="number">0</span>, key, <span class="string">''</span>, <span class="string">''</span>, <span class="keyword">this</span>.seq);
-  <span class="keyword">var</span> serv = <span class="keyword">this</span>.server(key);
   <span class="keyword">var</span> logger = <span class="keyword">this</span>.options.logger;
-  <span class="keyword">this</span>.perform(serv, request, <span class="keyword">function</span>(err, response) {
+  <span class="keyword">this</span>.perform(key, request, <span class="keyword">function</span>(err, response) {
     <span class="keyword">if</span> (err) {
-      callback(err, <span class="literal">null</span>, <span class="literal">null</span>);
+      callback &amp;&amp; callback(err, <span class="literal">null</span>, <span class="literal">null</span>);
       <span class="keyword">return</span>;
     }
     <span class="keyword">switch</span> (response.header.status) {
@@ -192,11 +206,10 @@ in last, after the callback) overrides the default expiration (see
                               makeExpiration(expires || <span class="keyword">this</span>.options.expires)]);
   <span class="keyword">this</span>.seq++;
   <span class="keyword">var</span> request = makeRequestBuffer(<span class="number">1</span>, key, extras, value.toString(), <span class="keyword">this</span>.seq);
-  <span class="keyword">var</span> serv = <span class="keyword">this</span>.server(key);
   <span class="keyword">var</span> logger = <span class="keyword">this</span>.options.logger;
-  <span class="keyword">this</span>.perform(serv, request, <span class="keyword">function</span>(err, response) {
+  <span class="keyword">this</span>.perform(key, request, <span class="keyword">function</span>(err, response) {
     <span class="keyword">if</span> (err) {
-      callback(err, <span class="literal">null</span>);
+      callback &amp;&amp; callback(err, <span class="literal">null</span>);
       <span class="keyword">return</span>;
     }
     <span class="keyword">switch</span> (response.header.status) {
@@ -233,11 +246,10 @@ in last, after the callback) overrides the default expiration (see
   <span class="keyword">var</span> extras = Buffer.concat([<span class="keyword">new</span> Buffer(<span class="string">'00000000'</span>, <span class="string">'hex'</span>), makeExpiration(expires || <span class="keyword">this</span>.options.expires)]);
   <span class="keyword">this</span>.seq++;
   <span class="keyword">var</span> request = makeRequestBuffer(<span class="number">2</span>, key, extras, value.toString(), <span class="keyword">this</span>.seq);
-  <span class="keyword">var</span> serv = <span class="keyword">this</span>.server(key);
   <span class="keyword">var</span> logger = <span class="keyword">this</span>.options.logger;
-  <span class="keyword">this</span>.perform(serv, request, <span class="keyword">function</span>(err, response) {
+  <span class="keyword">this</span>.perform(key, request, <span class="keyword">function</span>(err, response) {
     <span class="keyword">if</span> (err) {
-      callback(err, <span class="literal">null</span>, <span class="literal">null</span>);
+      callback &amp;&amp; callback(err, <span class="literal">null</span>, <span class="literal">null</span>);
       <span class="keyword">return</span>;
     }
     <span class="keyword">switch</span> (response.header.status) {
@@ -277,11 +289,10 @@ in last, after the callback) overrides the default expiration (see
   <span class="keyword">var</span> extras = Buffer.concat([<span class="keyword">new</span> Buffer(<span class="string">'00000000'</span>, <span class="string">'hex'</span>), makeExpiration(expires || <span class="keyword">this</span>.options.expires)]);
   <span class="keyword">this</span>.seq++;
   <span class="keyword">var</span> request = makeRequestBuffer(<span class="number">3</span>, key, extras, value.toString(), <span class="keyword">this</span>.seq);
-  <span class="keyword">var</span> serv = <span class="keyword">this</span>.server(key);
   <span class="keyword">var</span> logger = <span class="keyword">this</span>.options.logger;
-  <span class="keyword">this</span>.perform(serv, request, <span class="keyword">function</span>(err, response) {
+  <span class="keyword">this</span>.perform(key, request, <span class="keyword">function</span>(err, response) {
     <span class="keyword">if</span> (err) {
-      callback(err, <span class="literal">null</span>, <span class="literal">null</span>);
+      callback &amp;&amp; callback(err, <span class="literal">null</span>, <span class="literal">null</span>);
       <span class="keyword">return</span>;
     }
     <span class="keyword">switch</span> (response.header.status) {
@@ -318,11 +329,10 @@ if the key is already present. The callback signature is:</p>
             <div class="content"><div class='highlight'><pre>Client.prototype.<span class="keyword">delete</span> = <span class="keyword">function</span>(key, callback) {
   <span class="keyword">this</span>.seq++;
   <span class="keyword">var</span> request = makeRequestBuffer(<span class="number">4</span>, key, <span class="string">''</span>, <span class="string">''</span>, <span class="keyword">this</span>.seq);
-  <span class="keyword">var</span> serv = <span class="keyword">this</span>.server(key);
   <span class="keyword">var</span> logger = <span class="keyword">this</span>.options.logger;
-  <span class="keyword">this</span>.perform(serv, request, <span class="keyword">function</span>(err, response) {
+  <span class="keyword">this</span>.perform(key, request, <span class="keyword">function</span>(err, response) {
     <span class="keyword">if</span> (err) {
-      callback(err, <span class="literal">null</span>, <span class="literal">null</span>);
+      callback &amp;&amp; callback(err, <span class="literal">null</span>, <span class="literal">null</span>);
       <span class="keyword">return</span>;
     }
     <span class="keyword">switch</span> (response.header.status) {
@@ -363,11 +373,10 @@ in last, after the callback) overrides the default expiration (see
   <span class="keyword">this</span>.seq++;
   <span class="keyword">var</span> request = makeRequestBuffer(<span class="number">5</span>, key, extras, <span class="string">''</span>, <span class="keyword">this</span>.seq);
 
-  <span class="keyword">var</span> serv = <span class="keyword">this</span>.server(key);
   <span class="keyword">var</span> logger = <span class="keyword">this</span>.options.logger;
-  <span class="keyword">this</span>.perform(serv, request, <span class="keyword">function</span>(err, response) {
+  <span class="keyword">this</span>.perform(key, request, <span class="keyword">function</span>(err, response) {
     <span class="keyword">if</span> (err) {
-      callback(err, <span class="literal">null</span>);
+      callback &amp;&amp; callback(err, <span class="literal">null</span>);
       <span class="keyword">return</span>;
     }
     <span class="keyword">switch</span> (response.header.status) {
@@ -405,11 +414,10 @@ in last, after the callback) overrides the default expiration (see
   <span class="keyword">this</span>.seq++;
   <span class="keyword">var</span> request = makeRequestBuffer(<span class="number">6</span>, key, extras, <span class="string">''</span>, <span class="keyword">this</span>.seq);
 
-  <span class="keyword">var</span> serv = <span class="keyword">this</span>.server(key);
   <span class="keyword">var</span> logger = <span class="keyword">this</span>.options.logger;
-  <span class="keyword">this</span>.perform(serv, request, <span class="keyword">function</span>(err, response) {
+  <span class="keyword">this</span>.perform(key, request, <span class="keyword">function</span>(err, response) {
     <span class="keyword">if</span> (err) {
-      callback(err, <span class="literal">null</span>);
+      callback &amp;&amp; callback(err, <span class="literal">null</span>);
       <span class="keyword">return</span>;
     }
     <span class="keyword">switch</span> (response.header.status) {
@@ -450,7 +458,7 @@ error.</p>
   <span class="keyword">var</span> count = <span class="number">0</span>;
   <span class="keyword">var</span> lastErr = <span class="literal">null</span>;
   <span class="keyword">var</span> servers = <span class="keyword">this</span>.servers;
-  <span class="keyword">for</span> (i <span class="keyword">in</span> <span class="keyword">this</span>.servers) {
+  <span class="keyword">for</span> (<span class="keyword">var</span> i <span class="keyword">in</span> <span class="keyword">this</span>.servers) {
     <span class="keyword">var</span> serv = servers[i];
     serv.onResponse(<span class="keyword">this</span>.seq, <span class="keyword">function</span>(response) {
       count += <span class="number">1</span>;
@@ -493,7 +501,7 @@ dictionary mapping the stat name to the value of the statistic as a string.</p>
   <span class="keyword">this</span>.seq++;
   <span class="keyword">var</span> request = makeRequestBuffer(<span class="number">0x10</span>, <span class="string">''</span>, <span class="string">''</span>, <span class="string">''</span>, <span class="keyword">this</span>.seq);
   <span class="keyword">var</span> logger = <span class="keyword">this</span>.options.logger;
-  <span class="keyword">for</span> (i <span class="keyword">in</span> <span class="keyword">this</span>.servers) {
+  <span class="keyword">for</span> (<span class="keyword">var</span> i <span class="keyword">in</span> <span class="keyword">this</span>.servers) {
     <span class="keyword">var</span> serv = <span class="keyword">this</span>.servers[i];
     <span class="keyword">var</span> result = {};
     <span class="keyword">var</span> statsHandler = <span class="keyword">function</span>(response) {
@@ -538,8 +546,17 @@ callback</p>
 
             </div>
             
-            <div class="content"><div class='highlight'><pre>Client.prototype.perform = <span class="keyword">function</span>(serv, request, callback, retries) {
-  retries = retries || <span class="keyword">this</span>.options.retries
+            <div class="content"><div class='highlight'><pre>Client.prototype.perform = <span class="keyword">function</span>(key, request, callback, retries) {
+  <span class="keyword">var</span> _<span class="keyword">this</span> = <span class="keyword">this</span>;
+  <span class="keyword">var</span> serv = <span class="keyword">this</span>.server(key);
+  <span class="keyword">if</span> (!serv) {
+    callback &amp;&amp; callback(<span class="keyword">new</span> Error(<span class="string">"No servers available"</span>), <span class="literal">null</span>);
+    <span class="keyword">return</span>;
+  }
+
+  retries = retries || <span class="keyword">this</span>.options.retries;
+  <span class="keyword">var</span> failover = <span class="keyword">this</span>.options.failover;
+  <span class="keyword">var</span> failoverTime = <span class="keyword">this</span>.options.failoverTime;
   origRetries = retries;
   <span class="keyword">var</span> logger = <span class="keyword">this</span>.options.logger;
 
@@ -556,7 +573,12 @@ callback</p>
       logger.log(<span class="string">"MemJS: Server &lt;"</span> + serv.host + <span class="string">":"</span> + serv.port +
                   <span class="string">"&gt; failed after ("</span> + origRetries +
                   <span class="string">") retries with error - "</span> + error.message);
-      callback &amp;&amp; callback(error, <span class="literal">null</span>);
+      <span class="keyword">if</span> (failover) {
+        serv.wakeupAt = Date.now() + failoverTime * <span class="number">1000</span>;
+        _<span class="keyword">this</span>.perform(key, request, callback, origRetries);
+      } <span class="keyword">else</span> {
+        callback &amp;&amp; callback(error, <span class="literal">null</span>);
+      }
     }
   };
 
@@ -579,7 +601,7 @@ callback</p>
             </div>
             
             <div class="content"><div class='highlight'><pre>Client.prototype.close = <span class="keyword">function</span>() {
-  <span class="keyword">for</span> (i <span class="keyword">in</span> <span class="keyword">this</span>.servers) {
+  <span class="keyword">for</span> (<span class="keyword">var</span> i <span class="keyword">in</span> <span class="keyword">this</span>.servers) {
     <span class="keyword">this</span>.servers[i].close();
   }
 }
