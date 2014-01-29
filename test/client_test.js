@@ -214,10 +214,10 @@ exports.testSetErrorConcurrent = function(beforeExit, assert) {
 
   beforeExit(function() {
     assert.equal(4, n,  'Ensure set is retried once ' + n);
-    assert.equal(1, callbn1,  'Ensure callback is called ' + callbn);
-    assert.equal(1, errn1,  'Ensure callback called with error ' + errn);
-    assert.equal(1, callbn2,  'Ensure callback is called ' + callbn);
-    assert.equal(1, errn2,  'Ensure callback called with error ' + errn);
+    assert.equal(1, callbn1,  'Ensure callback is called ' + callbn1);
+    assert.equal(1, errn1,  'Ensure callback called with error ' + errn1);
+    assert.equal(1, callbn2,  'Ensure callback is called ' + callbn2);
+    assert.equal(1, errn2,  'Ensure callback called with error ' + errn2);
   });
 }
 
