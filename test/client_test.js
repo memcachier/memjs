@@ -463,13 +463,17 @@ exports.testIncrementSuccessful = function(beforeExit, assert) {
     assert.equal('\0\0\0\0\0\0\0\5\0\0\0\0\0\0\0\0\0\0\0\0',
                  request.extras.toString());
     n += 1;
-    dummyServer.respond({header: {status: 0, opaque: request.header.opaque}});
+    var value = new Buffer(8);
+    value.writeUInt32BE(request.header.opcode + 1, 4);
+    value.writeUInt32BE(0, 0);
+    dummyServer.respond({header: {status: 0, opaque: request.header.opaque}, val: value});
   }
 
   var client = new MemJS.Client([dummyServer]);
-  client.increment('number-increment-test', 5, function(err, val){
+  client.increment('number-increment-test', 5, function(err, success, val){
     callbn += 1;
-    assert.equal(true, val);
+    assert.equal(true, success);
+    assert.equal(6, val);
     assert.equal(null, err);
   });
 
