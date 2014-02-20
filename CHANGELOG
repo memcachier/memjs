@@ -1,8 +1,10 @@
 # Change Log
 
+# Version 0.8.3
+* Bug fix in dataType parse in response header
+
 # Version 0.8.2
 * Bug fix in handling error cases when retries > 1
-* Bug fix in dataType parse in response header
 
 # Version 0.8.1
 * Support failover
