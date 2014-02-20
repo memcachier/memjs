@@ -1,13 +1,13 @@
 var header = require('header');
 
 exports.testParseHeaderResponse = function(be, assert) {
-  var headerBuf = new Buffer([0x81, 1, 7, 0, 4, 0, 0, 1, 0, 0, 0, 9, 0, 0, 0, 0, 0x0a, 0, 0, 0, 0, 0, 0, 0]);
+  var headerBuf = new Buffer([0x81, 1, 7, 0, 4, 3, 0, 1, 0, 0, 0, 9, 0, 0, 0, 0, 0x0a, 0, 0, 0, 0, 0, 0, 0]);
   var responseHeader = header.fromBuffer(headerBuf);
   assert.equal(0x81, responseHeader.magic);
   assert.equal(1, responseHeader.opcode);
   assert.equal(0x0700, responseHeader.keyLength);
   assert.equal(4, responseHeader.extrasLength);
-  assert.equal(0, responseHeader.dataType);
+  assert.equal(3, responseHeader.dataType);
   assert.equal(1, responseHeader.status);
   assert.equal(9, responseHeader.totalBodyLength);
   assert.equal(0, responseHeader.opaque);
