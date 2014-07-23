@@ -1,5 +1,10 @@
 # Change Log
 
+# Version 0.8.5
+* Add quit command
+* Fixes to stats command
+* Fixes to flush command
+
 # Version 0.8.4
 * Don't force conversion of value to string in set, add, replace, etc (issue #44)
 
