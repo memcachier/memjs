@@ -97,6 +97,9 @@ can also implement a feature not a list if you think it would be good.
 ### TODOS ###
 
 * Support flags
+* Support prepend, append
+* Support multi commands
+* Support touch
 * Support CAS
 * Consistent hashing for keys and/or pluggable hashing algorithm
 
