@@ -65,14 +65,46 @@ You can start using MemJS immediately from the node console:
 
     $ var memjs = require('memjs')
     $ var client = memjs.Client.create()
-    $ client.get('hello', console.log)
+    $ client.get('hello', function(err, val) { console.log(val); })
+
+### Settings Values
+
+``` javascript
+client.set('hello', 'world', function(err, val) {
+
+}, 600);
+```
+
+The `set(key, val, callback, expiration)` function accepts the following parameters.
+
+* `key`: key to set
+* `val`: value to set
+* `callback`: a callback invoked after the value is set
+  * `err` : error
+  * `val` : value retrieved
+* `expiration`: time interval, in seconds, after which memcached will expire the object
+
+### Getting Values
+
+``` javascript
+client.get('hello', function(err, val) {
+
+});
+```
+
+The `get(key, callback)` function accepts the following parameters.
+
+* `key`: key to retrieve
+* `callback`: a callback invoked after the value is retrieved
+  * `err` : error
+  * `val` : value retrieved
 
 ## Contributing
 
 The best way to contribut to the project is by reporting bugs and testing unpublished
 versions. If you have a staging or development app, the easiest way to do this is
 using the git repository as your `memjs` package dependency---in `package.json`:
-    
+
     {
       "name": "MyAppName",
       ...
@@ -82,7 +114,7 @@ using the git repository as your `memjs` package dependency---in `package.json`:
         ...
       }
     }
-    
+
 If you find a bug, please report as an [issue](https://github.com/alevy/memjs/issues/new).
 If you fix it, please don't hesitate to send a pull request on GitHub or via
 [e-mail](http://www.kernel.org/pub/software/scm/git/docs/git-request-pull.html).
