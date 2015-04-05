@@ -32,18 +32,22 @@ exports.testGetNotFound = function(beforeExit, assert) {
   var n = 0;
   var callbn = 0;
   var dummyServer = new MemJS.Server();
+  var errorMessage = 'Key not found';
   dummyServer.write = function(requestBuf) {
     request = MemJS.Utils.parseMessage(requestBuf);
     assert.equal('hello', request.key);
     n += 1;
     dummyServer.respond(
-      {header: {status: 1, opaque: request.header.opaque}});
+      {header: {status: 1, opaque: request.header.opaque},
+        val: errorMessage });
   }
 
   var client = new MemJS.Client([dummyServer]);
-  client.get('hello', function(val, flags) {
+  client.get('hello', function(err, val) {
+    assert.equal(typeof err, 'object', 'Get error');
+    assert.equal(err instanceof Error, true, 'Error object');
+    assert.equal(err.message, errorMessage, 'Correct error message from server');
     assert.equal(null, val);
-    assert.equal(null, flags);
     callbn += 1;
   });
 
