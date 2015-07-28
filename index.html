@@ -1,0 +1,619 @@
+<!DOCTYPE html>
+
+<html>
+<head>
+  <title>MemJS Memcache Client</title>
+  <meta http-equiv="content-type" content="text/html; charset=UTF-8">
+  <meta name="viewport" content="width=device-width, target-densitydpi=160dpi, initial-scale=1.0; maximum-scale=1.0; user-scalable=0;">
+  <link rel="stylesheet" media="all" href="docco.css" />
+</head>
+<body>
+  <div id="container">
+    <div id="background"></div>
+    
+    <ul class="sections">
+        
+        
+        
+        <li id="section-1">
+            <div class="annotation">
+              
+              <div class="pilwrap for-h1">
+                <a class="pilcrow" href="#section-1">&#182;</a>
+              </div>
+              <h1>MemJS Memcache Client</h1>
+
+            </div>
+            
+            <div class="content"><div class='highlight'><pre><span class="keyword">var</span> errors = require(<span class="string">'./protocol'</span>).errors;
+<span class="keyword">var</span> Server = require(<span class="string">'./server'</span>).Server;
+<span class="keyword">var</span> makeRequestBuffer = require(<span class="string">'./utils'</span>).makeRequestBuffer;
+<span class="keyword">var</span> hashCode = require(<span class="string">'./utils'</span>).hashCode;
+<span class="keyword">var</span> merge = require(<span class="string">'./utils'</span>).merge;
+<span class="keyword">var</span> makeExpiration = require(<span class="string">'./utils'</span>).makeExpiration;
+<span class="keyword">var</span> makeAmountInitialAndExpiration = require(<span class="string">'./utils'</span>).makeAmountInitialAndExpiration;</pre></div></div>
+            
+        </li>
+        
+        
+        <li id="section-2">
+            <div class="annotation">
+              
+              <div class="pilwrap ">
+                <a class="pilcrow" href="#section-2">&#182;</a>
+              </div>
+              <p>Client initializer takes a list of <code>Server</code>s and an <code>options</code> dictionary.
+See <code>Client.create</code> for details.</p>
+
+            </div>
+            
+            <div class="content"><div class='highlight'><pre><span class="keyword">var</span> Client = <span class="keyword">function</span>(servers, options) {
+  <span class="keyword">this</span>.servers = servers;
+  <span class="keyword">this</span>.seq = <span class="number">0</span>;
+  <span class="keyword">this</span>.options = merge(options || {},
+      {failoverTime: <span class="number">60</span>, retries: <span class="number">2</span>, expires: <span class="number">0</span>, logger: console});
+}</pre></div></div>
+            
+        </li>
+        
+        
+        <li id="section-3">
+            <div class="annotation">
+              
+              <div class="pilwrap ">
+                <a class="pilcrow" href="#section-3">&#182;</a>
+              </div>
+              <p>Creates a new client given an optional config string and optional hash of
+options. The config string should be of the form:</p>
+<pre><code>&quot;[user:pass@]server1[:11211],[user:pass@]server2[:11211],...&quot;</code></pre>
+<p>If the argument is not given, fallback on the <code>MEMCACHIER_SERVERS</code> environment
+variable, <code>MEMCACHE_SERVERS</code> environment variable or <code>&quot;localhost:11211&quot;</code>.</p>
+<p>The options hash may contain the options:</p>
+<ul>
+<li><code>retries</code> - the number of times to retry an operation in lieu of failures
+(default 2)</li>
+<li><code>expires</code> - the default expiration in seconds to use (default 0 - never
+expire). If <code>expires</code> is greater than 30 days (60 x 60 x 24 x 30), it is
+treated as a UNIX time (number of seconds since January 1, 1970).</li>
+<li><code>logger</code> - a logger object that responds to</li>
+<li><code>failover</code> - whether to failover to next server. Defaults to false.</li>
+<li><p><code>failoverTime</code> - how much to wait until retring a failed server. Default</p>
+<pre><code>             is 60 seconds.</code></pre>
+<pre><code>  log(msg1[, msg2[, msg3[...]]])</code></pre>
+<p>Defaults to <code>console</code>.</p>
+</li>
+</ul>
+<p>Or options for the servers including:
+<em> <code>username</code> and <code>password</code> for fallback SASL authentication credentials.
+</em> <code>timeout</code> in seconds to determine failure for operations. <code>keepAlive</code> whether to enable keep-alive functionality. <code>keepAliveDelay</code> in seconds to the initial delay before the first keepalive probe is sent on an idle socket.</p>
+
+            </div>
+            
+            <div class="content"><div class='highlight'><pre>Client.create = <span class="keyword">function</span>(serversStr, options) {
+  serversStr = serversStr || process.env.MEMCACHIER_SERVERS
+                          || process.env.MEMCACHE_SERVERS || <span class="string">"localhost:11211"</span>;
+  <span class="keyword">var</span> serverUris = serversStr.split(<span class="string">","</span>);
+  <span class="keyword">var</span> servers = serverUris.map(<span class="keyword">function</span>(uri) {
+    <span class="keyword">var</span> uriParts = uri.split(<span class="string">"@"</span>);
+    <span class="keyword">var</span> hostPort = uriParts[uriParts.length - <span class="number">1</span>].split(<span class="string">":"</span>);
+    <span class="keyword">var</span> userPass = (uriParts[uriParts.length - <span class="number">2</span>] || <span class="string">""</span>).split(<span class="string">":"</span>);
+    <span class="keyword">return</span> <span class="keyword">new</span> Server(hostPort[<span class="number">0</span>], parseInt(hostPort[<span class="number">1</span>] || <span class="number">11211</span>), userPass[<span class="number">0</span>], userPass[<span class="number">1</span>], options);
+  });
+  <span class="keyword">return</span> <span class="keyword">new</span> Client(servers, options);
+}</pre></div></div>
+            
+        </li>
+        
+        
+        <li id="section-4">
+            <div class="annotation">
+              
+              <div class="pilwrap ">
+                <a class="pilcrow" href="#section-4">&#182;</a>
+              </div>
+              <p>Chooses the server to talk to by hashing the given key.
+TODO(alevy): should use consistent hashing and/or allow swaping hashing
+mechanisms</p>
+
+            </div>
+            
+            <div class="content"><div class='highlight'><pre>Client.prototype.server = <span class="keyword">function</span>(key) {
+  <span class="keyword">var</span> origIdx = hashCode(key) % <span class="keyword">this</span>.servers.length;
+  <span class="keyword">var</span> idx = origIdx;
+  <span class="keyword">var</span> serv = <span class="keyword">this</span>.servers[idx];
+  <span class="keyword">while</span> (serv.wakeupAt &amp;&amp;
+      serv.wakeupAt &gt; Date.now()) {
+    idx = (idx + <span class="number">1</span>) % <span class="keyword">this</span>.servers.length;
+    <span class="keyword">if</span> (idx == origIdx) {
+      <span class="keyword">return</span> <span class="literal">null</span>;
+    }
+    serv = <span class="keyword">this</span>.servers[idx];
+  }
+  <span class="keyword">return</span> serv;
+}</pre></div></div>
+            
+        </li>
+        
+        
+        <li id="section-5">
+            <div class="annotation">
+              
+              <div class="pilwrap for-h2">
+                <a class="pilcrow" href="#section-5">&#182;</a>
+              </div>
+              <h2>Memcache Commands</h2>
+<p>All commands return their results through a callback passed as the last
+required argument (some commands, like <code>Client#set</code>, take optional arguments
+after the callback).</p>
+<p>The callback signature always follows:</p>
+<pre><code>callback(err, [arg1[, arg2[, arg3[...]]]])</code></pre>
+<p>In case of an error the <em>err</em> argument will be non-null and contain the
+<code>Error</code>. A notable exception includes a <code>Client#get</code> on a key that doesn&#39;t
+exist. In this case, <em>err</em> will be null, as will the <em>value and _extras</em>
+arguments.</p>
+<p>GET</p>
+<p>Fetches the value at the given key with callback signature:</p>
+<pre><code>callback(err, value, key)</code></pre>
+<p><em>value</em> and <em>key</em> are both <code>Buffer</code>s.
+If the key is not found, the callback is invoked
+with null for both arguments and no error.</p>
+
+            </div>
+            
+            <div class="content"><div class='highlight'><pre>Client.prototype.get = <span class="keyword">function</span>(key, callback) {
+  <span class="keyword">this</span>.seq++;
+  <span class="keyword">var</span> request = makeRequestBuffer(<span class="number">0</span>, key, <span class="string">''</span>, <span class="string">''</span>, <span class="keyword">this</span>.seq);
+  <span class="keyword">var</span> logger = <span class="keyword">this</span>.options.logger;
+  <span class="keyword">this</span>.perform(key, request, <span class="keyword">function</span>(err, response) {
+    <span class="keyword">if</span> (err) {
+      callback &amp;&amp; callback(err, <span class="literal">null</span>, <span class="literal">null</span>);
+      <span class="keyword">return</span>;
+    }
+    <span class="keyword">switch</span> (response.header.status) {
+    <span class="keyword">case</span>  <span class="number">0</span>:
+      callback &amp;&amp; callback(<span class="literal">null</span>, response.val, response.extras)
+      <span class="keyword">break</span>;
+    <span class="keyword">case</span> <span class="number">1</span>:
+      callback &amp;&amp; callback(<span class="literal">null</span>, <span class="literal">null</span>, <span class="literal">null</span>);
+      <span class="keyword">break</span>;
+    <span class="keyword">default</span>:
+      <span class="keyword">var</span> errorMessage = <span class="string">'MemJS GET: '</span> + errors[response.header.status];
+      logger.log(errorMessage);
+      callback &amp;&amp; callback(<span class="keyword">new</span> Error(errorMessage), <span class="literal">null</span>, <span class="literal">null</span>);
+    }
+  });
+}</pre></div></div>
+            
+        </li>
+        
+        
+        <li id="section-6">
+            <div class="annotation">
+              
+              <div class="pilwrap ">
+                <a class="pilcrow" href="#section-6">&#182;</a>
+              </div>
+              <p>SET</p>
+<p>Sets the given <em>key</em> and <em>value</em> in memcache. The <em>expires</em> argument (passed
+in last, after the callback) overrides the default expiration (see
+<code>Client.create</code>). The callback signature is:</p>
+<pre><code>callback(err, success)</code></pre>
+
+            </div>
+            
+            <div class="content"><div class='highlight'><pre>Client.prototype.set = <span class="keyword">function</span>(key, value, callback, expires) {
+  <span class="keyword">var</span> extras = Buffer.concat([<span class="keyword">new</span> Buffer(<span class="string">'00000000'</span>, <span class="string">'hex'</span>),
+                              makeExpiration(expires || <span class="keyword">this</span>.options.expires)]);
+  <span class="keyword">this</span>.seq++;
+  <span class="keyword">var</span> request = makeRequestBuffer(<span class="number">1</span>, key, extras, value.toString(), <span class="keyword">this</span>.seq);
+  <span class="keyword">var</span> logger = <span class="keyword">this</span>.options.logger;
+  <span class="keyword">this</span>.perform(key, request, <span class="keyword">function</span>(err, response) {
+    <span class="keyword">if</span> (err) {
+      callback &amp;&amp; callback(err, <span class="literal">null</span>);
+      <span class="keyword">return</span>;
+    }
+    <span class="keyword">switch</span> (response.header.status) {
+    <span class="keyword">case</span> <span class="number">0</span>:
+      callback &amp;&amp; callback(<span class="literal">null</span>, <span class="literal">true</span>)
+      <span class="keyword">break</span>;
+    <span class="keyword">default</span>:
+      <span class="keyword">var</span> errorMessage = <span class="string">'MemJS SET: '</span> + errors[response.header.status];
+      logger.log(errorMessage);
+      callback &amp;&amp; callback(<span class="keyword">new</span> Error(errorMessage), <span class="literal">null</span>, <span class="literal">null</span>);
+    }
+  });
+}</pre></div></div>
+            
+        </li>
+        
+        
+        <li id="section-7">
+            <div class="annotation">
+              
+              <div class="pilwrap ">
+                <a class="pilcrow" href="#section-7">&#182;</a>
+              </div>
+              <p>ADD</p>
+<p>Adds the given <em>key</em> and <em>value</em> to memcache. The operation only succeeds
+if the key is not already set. The <em>expires</em> argument (passed
+in last, after the callback) overrides the default expiration (see
+<code>Client.create</code>). The callback signature is:</p>
+<pre><code>callback(err, success)</code></pre>
+
+            </div>
+            
+            <div class="content"><div class='highlight'><pre>Client.prototype.add = <span class="keyword">function</span>(key, value, callback, expires) {
+  <span class="keyword">var</span> extras = Buffer.concat([<span class="keyword">new</span> Buffer(<span class="string">'00000000'</span>, <span class="string">'hex'</span>), makeExpiration(expires || <span class="keyword">this</span>.options.expires)]);
+  <span class="keyword">this</span>.seq++;
+  <span class="keyword">var</span> request = makeRequestBuffer(<span class="number">2</span>, key, extras, value.toString(), <span class="keyword">this</span>.seq);
+  <span class="keyword">var</span> logger = <span class="keyword">this</span>.options.logger;
+  <span class="keyword">this</span>.perform(key, request, <span class="keyword">function</span>(err, response) {
+    <span class="keyword">if</span> (err) {
+      callback &amp;&amp; callback(err, <span class="literal">null</span>, <span class="literal">null</span>);
+      <span class="keyword">return</span>;
+    }
+    <span class="keyword">switch</span> (response.header.status) {
+    <span class="keyword">case</span> <span class="number">0</span>:
+      callback &amp;&amp; callback(<span class="literal">null</span>, <span class="literal">true</span>)
+      <span class="keyword">break</span>;
+    <span class="keyword">case</span> <span class="number">2</span>:
+      callback &amp;&amp; callback(<span class="literal">null</span>, <span class="literal">false</span>);
+      <span class="keyword">break</span>;
+    <span class="keyword">default</span>:
+      <span class="keyword">var</span> errorMessage = <span class="string">'MemJS ADD: '</span> + errors[response.header.status];
+      logger.log(errorMessage, <span class="literal">false</span>);
+      callback &amp;&amp; callback(<span class="keyword">new</span> Error(errorMessage), <span class="literal">null</span>, <span class="literal">null</span>);
+    }
+  });
+}</pre></div></div>
+            
+        </li>
+        
+        
+        <li id="section-8">
+            <div class="annotation">
+              
+              <div class="pilwrap ">
+                <a class="pilcrow" href="#section-8">&#182;</a>
+              </div>
+              <p>REPLACE</p>
+<p>Replaces the given <em>key</em> and <em>value</em> to memcache. The operation only succeeds
+if the key is already present. The <em>expires</em> argument (passed
+in last, after the callback) overrides the default expiration (see
+<code>Client.create</code>). The callback signature is:</p>
+<pre><code>callback(err, success)</code></pre>
+
+            </div>
+            
+            <div class="content"><div class='highlight'><pre>Client.prototype.replace = <span class="keyword">function</span>(key, value, callback, expires) {
+  <span class="keyword">var</span> extras = Buffer.concat([<span class="keyword">new</span> Buffer(<span class="string">'00000000'</span>, <span class="string">'hex'</span>), makeExpiration(expires || <span class="keyword">this</span>.options.expires)]);
+  <span class="keyword">this</span>.seq++;
+  <span class="keyword">var</span> request = makeRequestBuffer(<span class="number">3</span>, key, extras, value.toString(), <span class="keyword">this</span>.seq);
+  <span class="keyword">var</span> logger = <span class="keyword">this</span>.options.logger;
+  <span class="keyword">this</span>.perform(key, request, <span class="keyword">function</span>(err, response) {
+    <span class="keyword">if</span> (err) {
+      callback &amp;&amp; callback(err, <span class="literal">null</span>, <span class="literal">null</span>);
+      <span class="keyword">return</span>;
+    }
+    <span class="keyword">switch</span> (response.header.status) {
+    <span class="keyword">case</span> <span class="number">0</span>:
+      callback &amp;&amp; callback(<span class="literal">null</span>, <span class="literal">true</span>)
+      <span class="keyword">break</span>;
+    <span class="keyword">case</span> <span class="number">1</span>:
+      callback &amp;&amp; callback(<span class="literal">null</span>, <span class="literal">false</span>);
+      <span class="keyword">break</span>;
+    <span class="keyword">default</span>:
+      <span class="keyword">var</span> errorMessage = <span class="string">'MemJS REPLACE: '</span> + errors[response.header.status];
+      logger.log(errorMessage, <span class="literal">false</span>);
+      callback &amp;&amp; callback(<span class="keyword">new</span> Error(errorMessage), <span class="literal">null</span>, <span class="literal">null</span>);
+    }
+  });
+}</pre></div></div>
+            
+        </li>
+        
+        
+        <li id="section-9">
+            <div class="annotation">
+              
+              <div class="pilwrap ">
+                <a class="pilcrow" href="#section-9">&#182;</a>
+              </div>
+              <p>DELETE</p>
+<p>Deletes the given <em>key</em> from memcache. The operation only succeeds
+if the key is already present. The callback signature is:</p>
+<pre><code>callback(err, success)</code></pre>
+
+            </div>
+            
+            <div class="content"><div class='highlight'><pre>Client.prototype.<span class="keyword">delete</span> = <span class="keyword">function</span>(key, callback) {
+  <span class="keyword">this</span>.seq++;
+  <span class="keyword">var</span> request = makeRequestBuffer(<span class="number">4</span>, key, <span class="string">''</span>, <span class="string">''</span>, <span class="keyword">this</span>.seq);
+  <span class="keyword">var</span> logger = <span class="keyword">this</span>.options.logger;
+  <span class="keyword">this</span>.perform(key, request, <span class="keyword">function</span>(err, response) {
+    <span class="keyword">if</span> (err) {
+      callback &amp;&amp; callback(err, <span class="literal">null</span>, <span class="literal">null</span>);
+      <span class="keyword">return</span>;
+    }
+    <span class="keyword">switch</span> (response.header.status) {
+    <span class="keyword">case</span>  <span class="number">0</span>:
+      callback &amp;&amp; callback(<span class="literal">null</span>, <span class="literal">true</span>)
+      <span class="keyword">break</span>;
+    <span class="keyword">case</span> <span class="number">1</span>:
+      callback &amp;&amp; callback(<span class="literal">null</span>, <span class="literal">false</span>);
+      <span class="keyword">break</span>;
+    <span class="keyword">default</span>:
+      <span class="keyword">var</span> errorMessage = <span class="string">'MemJS DELETE: '</span> + errors[response.header.status];
+      logger.log(errorMessage, <span class="literal">false</span>);
+      callback &amp;&amp; callback(<span class="keyword">new</span> Error(errorMessage), <span class="literal">null</span>);
+    }
+  });
+}</pre></div></div>
+            
+        </li>
+        
+        
+        <li id="section-10">
+            <div class="annotation">
+              
+              <div class="pilwrap ">
+                <a class="pilcrow" href="#section-10">&#182;</a>
+              </div>
+              <p>INCREMENT</p>
+<p>Increments the given <em>key</em> in memcache. Defaults to <code>0</code> if the key is not
+present. The <em>expires</em> argument (passed
+in last, after the callback) overrides the default expiration (see
+<code>Client.create</code>). The callback signature is:</p>
+<pre><code>callback(err, success)</code></pre>
+
+            </div>
+            
+            <div class="content"><div class='highlight'><pre>Client.prototype.increment = <span class="keyword">function</span>(key, amount, callback, expires) {
+  <span class="keyword">var</span> extras = makeAmountInitialAndExpiration(amount, <span class="number">0</span>, (expires || <span class="keyword">this</span>.options.expires));
+  <span class="keyword">this</span>.seq++;
+  <span class="keyword">var</span> request = makeRequestBuffer(<span class="number">5</span>, key, extras, <span class="string">''</span>, <span class="keyword">this</span>.seq);
+
+  <span class="keyword">var</span> logger = <span class="keyword">this</span>.options.logger;
+  <span class="keyword">this</span>.perform(key, request, <span class="keyword">function</span>(err, response) {
+    <span class="keyword">if</span> (err) {
+      callback &amp;&amp; callback(err, <span class="literal">null</span>);
+      <span class="keyword">return</span>;
+    }
+    <span class="keyword">switch</span> (response.header.status) {
+    <span class="keyword">case</span> <span class="number">0</span>:
+      callback &amp;&amp; callback(<span class="literal">null</span>, <span class="literal">true</span>)
+      <span class="keyword">break</span>;
+    <span class="keyword">default</span>:
+      <span class="keyword">var</span> errorMessage = <span class="string">'MemJS INCREMENT: '</span> + errors[response.header.status];
+      logger.log(errorMessage);
+      callback &amp;&amp; callback(<span class="keyword">new</span> Error(errorMessage), <span class="literal">null</span>);
+    }
+  });
+}</pre></div></div>
+            
+        </li>
+        
+        
+        <li id="section-11">
+            <div class="annotation">
+              
+              <div class="pilwrap ">
+                <a class="pilcrow" href="#section-11">&#182;</a>
+              </div>
+              <p>DECREMENT</p>
+<p>Decrements the given <em>key</em> in memcache. Defaults to <code>0</code> if the key is not
+present. The <em>expires</em> argument (passed
+in last, after the callback) overrides the default expiration (see
+<code>Client.create</code>). The callback signature is:</p>
+<pre><code>callback(err, success)</code></pre>
+
+            </div>
+            
+            <div class="content"><div class='highlight'><pre>Client.prototype.decrement = <span class="keyword">function</span>(key, amount, callback, expires) {
+  <span class="keyword">var</span> extras = makeAmountInitialAndExpiration(amount, <span class="number">0</span>, (expires || <span class="keyword">this</span>.options.expires));
+  <span class="keyword">this</span>.seq++;
+  <span class="keyword">var</span> request = makeRequestBuffer(<span class="number">6</span>, key, extras, <span class="string">''</span>, <span class="keyword">this</span>.seq);
+
+  <span class="keyword">var</span> logger = <span class="keyword">this</span>.options.logger;
+  <span class="keyword">this</span>.perform(key, request, <span class="keyword">function</span>(err, response) {
+    <span class="keyword">if</span> (err) {
+      callback &amp;&amp; callback(err, <span class="literal">null</span>);
+      <span class="keyword">return</span>;
+    }
+    <span class="keyword">switch</span> (response.header.status) {
+    <span class="keyword">case</span> <span class="number">0</span>:
+      callback &amp;&amp; callback(<span class="literal">null</span>, <span class="literal">true</span>)
+      <span class="keyword">break</span>;
+    <span class="keyword">default</span>:
+      <span class="keyword">var</span> errorMessage = <span class="string">'MemJS DECREMENT: '</span> + errors[response.header.status];
+      logger.log(errorMessage);
+      callback &amp;&amp; callback(<span class="keyword">new</span> Error(errorMessage), <span class="literal">null</span>);
+    }
+  });
+}</pre></div></div>
+            
+        </li>
+        
+        
+        <li id="section-12">
+            <div class="annotation">
+              
+              <div class="pilwrap ">
+                <a class="pilcrow" href="#section-12">&#182;</a>
+              </div>
+              <p>FLUSH</p>
+<p>Flushes the cache on each connected server. The callback signature is:</p>
+<pre><code>callback(lastErr, results)</code></pre>
+<p>where <em>lastErr</em> is the last error encountered (or null, in the common case
+where there were no errors). <em>results</em> is a dictionary mapping
+<code>&quot;hostname:port&quot;</code> to either <code>true</code> (if the operation was successful), or an
+error.</p>
+
+            </div>
+            
+            <div class="content"><div class='highlight'><pre>Client.prototype.flush = <span class="keyword">function</span>(callback) {
+  <span class="keyword">this</span>.seq++;
+  <span class="keyword">var</span> request = makeRequestBuffer(<span class="number">0x08</span>, <span class="string">''</span>, <span class="string">''</span>, <span class="string">''</span>, <span class="keyword">this</span>.seq);
+  <span class="keyword">var</span> result = {};
+  <span class="keyword">var</span> count = <span class="number">0</span>;
+  <span class="keyword">var</span> lastErr = <span class="literal">null</span>;
+  <span class="keyword">var</span> servers = <span class="keyword">this</span>.servers;
+  <span class="keyword">for</span> (<span class="keyword">var</span> i <span class="keyword">in</span> <span class="keyword">this</span>.servers) {
+    <span class="keyword">var</span> serv = servers[i];
+    serv.onResponse(<span class="keyword">this</span>.seq, <span class="keyword">function</span>(response) {
+      count += <span class="number">1</span>;
+      result[serv.host + <span class="string">":"</span> + serv.port] = <span class="literal">true</span>;
+      <span class="keyword">if</span> (callback &amp;&amp; count &gt;= servers.length) {
+        callback(lastErr, result);
+      }
+    });
+    serv.onError(<span class="keyword">this</span>.seq, <span class="keyword">function</span>(err) {
+      lastErr = err;
+      count += <span class="number">1</span>;
+      result[serv.host + <span class="string">":"</span> + serv.port] = err;
+      <span class="keyword">if</span> (callback &amp;&amp; count &gt;= servers.length) {
+        callback(lastErr, result);
+      }
+    });
+    serv.write(request);
+  }
+}</pre></div></div>
+            
+        </li>
+        
+        
+        <li id="section-13">
+            <div class="annotation">
+              
+              <div class="pilwrap ">
+                <a class="pilcrow" href="#section-13">&#182;</a>
+              </div>
+              <p>STATS</p>
+<p>Fetches memcache stats from each connected server. The callback is invoked 
+<strong>ONCE PER SERVER</strong> and has the signature:</p>
+<pre><code>callback(err, server, stats)</code></pre>
+<p><em>server</em> is the <code>&quot;hostname:port&quot;</code> of the server, and <em>stats</em> is a
+dictionary mapping the stat name to the value of the statistic as a string.</p>
+
+            </div>
+            
+            <div class="content"><div class='highlight'><pre>Client.prototype.stats = <span class="keyword">function</span>(callback) {
+  <span class="keyword">this</span>.seq++;
+  <span class="keyword">var</span> request = makeRequestBuffer(<span class="number">0x10</span>, <span class="string">''</span>, <span class="string">''</span>, <span class="string">''</span>, <span class="keyword">this</span>.seq);
+  <span class="keyword">var</span> logger = <span class="keyword">this</span>.options.logger;
+  <span class="keyword">for</span> (<span class="keyword">var</span> i <span class="keyword">in</span> <span class="keyword">this</span>.servers) {
+    <span class="keyword">var</span> serv = <span class="keyword">this</span>.servers[i];
+    <span class="keyword">var</span> result = {};
+    <span class="keyword">var</span> statsHandler = <span class="keyword">function</span>(response) {
+      <span class="keyword">if</span> (response.header.totalBodyLength == <span class="number">0</span>) {
+        callback &amp;&amp; callback(<span class="literal">null</span>, serv.host + <span class="string">":"</span> + serv.port, result);
+        <span class="keyword">return</span>;
+      }
+      <span class="keyword">switch</span> (response.header.status) {
+      <span class="keyword">case</span>  <span class="number">0</span>:
+        result[response.key.toString()] = response.val.toString();
+        <span class="keyword">break</span>;
+      <span class="keyword">default</span>:
+        logger.log(<span class="string">'MemJS STATS: '</span> + response.header.status);
+        callback &amp;&amp; callback();
+        <span class="keyword">var</span> errorMessage = <span class="string">'MemJS DELETE: '</span> + errors[response.header.status];
+        logger.log(errorMessage, <span class="literal">false</span>);
+        callback &amp;&amp; callback(<span class="keyword">new</span> Error(errorMessage, serv.host + <span class="string">":"</span> + serv.port, <span class="literal">null</span>));
+      }
+    };
+    statsHandler.quiet = <span class="literal">true</span>;
+    serv.onResponse(<span class="keyword">this</span>.seq, statsHandler);
+    serv.onError(<span class="keyword">this</span>.seq, <span class="keyword">function</span>(err) {
+      callback &amp;&amp; callback(err, serv.host + <span class="string">":"</span> + serv.port, <span class="literal">null</span>);
+    });
+    serv.write(request);
+  }
+}</pre></div></div>
+            
+        </li>
+        
+        
+        <li id="section-14">
+            <div class="annotation">
+              
+              <div class="pilwrap ">
+                <a class="pilcrow" href="#section-14">&#182;</a>
+              </div>
+              <p>Perform a generic single response operation (get, set etc) on a server
+serv: the server to perform the operation on
+request: a buffer containing the request
+callback</p>
+
+            </div>
+            
+            <div class="content"><div class='highlight'><pre>Client.prototype.perform = <span class="keyword">function</span>(key, request, callback, retries) {
+  <span class="keyword">var</span> _<span class="keyword">this</span> = <span class="keyword">this</span>;
+  <span class="keyword">var</span> serv = <span class="keyword">this</span>.server(key);
+  <span class="keyword">if</span> (!serv) {
+    callback &amp;&amp; callback(<span class="keyword">new</span> Error(<span class="string">"No servers available"</span>), <span class="literal">null</span>);
+    <span class="keyword">return</span>;
+  }
+
+  retries = retries || <span class="keyword">this</span>.options.retries;
+  <span class="keyword">var</span> failover = <span class="keyword">this</span>.options.failover;
+  <span class="keyword">var</span> failoverTime = <span class="keyword">this</span>.options.failoverTime;
+  origRetries = retries;
+  <span class="keyword">var</span> logger = <span class="keyword">this</span>.options.logger;
+
+  <span class="keyword">var</span> responseHandler = <span class="keyword">function</span>(response) {
+    callback &amp;&amp; callback(<span class="literal">null</span>, response);
+  };
+
+  <span class="keyword">var</span> errorHandler = <span class="keyword">function</span>(error) {
+    <span class="keyword">if</span> (--retries &gt; <span class="number">0</span>) {
+      serv.onResponse(<span class="keyword">this</span>.seq, responseHandler);
+      serv.onError(<span class="keyword">this</span>.seq, errorHandler);
+      serv.write(request);
+    } <span class="keyword">else</span> {
+      logger.log(<span class="string">"MemJS: Server &lt;"</span> + serv.host + <span class="string">":"</span> + serv.port +
+                  <span class="string">"&gt; failed after ("</span> + origRetries +
+                  <span class="string">") retries with error - "</span> + error.message);
+      <span class="keyword">if</span> (failover) {
+        serv.wakeupAt = Date.now() + failoverTime * <span class="number">1000</span>;
+        _<span class="keyword">this</span>.perform(key, request, callback, origRetries);
+      } <span class="keyword">else</span> {
+        callback &amp;&amp; callback(error, <span class="literal">null</span>);
+      }
+    }
+  };
+
+  serv.onResponse(<span class="keyword">this</span>.seq, responseHandler);
+  serv.onError(<span class="keyword">this</span>.seq, errorHandler);
+  serv.write(request);
+}</pre></div></div>
+            
+        </li>
+        
+        
+        <li id="section-15">
+            <div class="annotation">
+              
+              <div class="pilwrap ">
+                <a class="pilcrow" href="#section-15">&#182;</a>
+              </div>
+              <p>Closes connections to all the servers.</p>
+
+            </div>
+            
+            <div class="content"><div class='highlight'><pre>Client.prototype.close = <span class="keyword">function</span>() {
+  <span class="keyword">for</span> (<span class="keyword">var</span> i <span class="keyword">in</span> <span class="keyword">this</span>.servers) {
+    <span class="keyword">this</span>.servers[i].close();
+  }
+}
+
+exports.Client = Client;
+exports.Server = Server;
+exports.Utils = require(<span class="string">'./utils'</span>);
+exports.Header = require(<span class="string">'./header'</span>);</pre></div></div>
+            
+        </li>
+        
+    </ul>
+  </div>
+</body>
+</html>
