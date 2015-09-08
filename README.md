@@ -1,6 +1,7 @@
 MemJS
 =====
 
++[![npm](http://img.shields.io/npm/v/npm.svg)](https://www.npmjs.com/package/memjs)
 [![Build Status](https://secure.travis-ci.org/alevy/memjs.png)](http://travis-ci.org/alevy/memjs?branch=master)
 
 MemJS is a pure Node.js client library for using memcache, in particular, the
