@@ -10,14 +10,21 @@ exports.testGetSuccessful = function(beforeExit, assert) {
     assert.equal('hello', request.key);
     n += 1;
     dummyServer.respond(
-      {header: {status: 0, opaque: request.header.opaque},
-        val: 'world', extras: 'flagshere'});
+      {
+        header: {
+          status: 0,
+          opaque: request.header.opaque,
+          cas: new Buffer([0x0a, 0, 0, 0, 0, 0, 0, 0])
+        },
+        val: 'world', extras: 'flagshere'
+      });
   }
 
   var client = new MemJS.Client([dummyServer]);
-  client.get('hello', function(err, val, flags) {
+  client.get('hello', function(err, val, flags, cas) {
     assert.equal('world', val);
     assert.equal('flagshere', flags);
+    assert.deepEqual(new Buffer([0x0a, 0, 0, 0, 0, 0, 0, 0]), cas);
     assert.equal(null, err);
     callbn += 1;
   });
@@ -97,6 +104,34 @@ exports.testSetWithExpiration = function(beforeExit, assert) {
     assert.equal(true, val);
     callbn += 1;
   });
+
+  beforeExit(function() {
+    assert.equal(1, n,  'Ensure set is called');
+    assert.equal(1, callbn,  'Ensure callback is called');
+  });
+}
+
+exports.testSetWithCas = function(beforeExit, assert) {
+  var n = 0;
+  var callbn = 0;
+  var dummyServer = new MemJS.Server();
+  dummyServer.write = function(requestBuf) {
+    console.log(requestBuf);
+    request = MemJS.Utils.parseMessage(requestBuf);
+    assert.equal('hello', request.key);
+    assert.equal('world', request.val);
+    assert.deepEqual(new Buffer([0x0a,0,0,0,0,0,0,0]), request.header.cas);
+    n += 1;
+    dummyServer.respond({header: {status: 0, opaque: request.header.opaque}});
+  }
+
+  var client = new MemJS.Client([dummyServer]);
+  client.set('hello', 'world', function(err, val) {
+    assert.equal(null, err);
+    assert.equal(true, val);
+    callbn += 1;
+  }, undefined, new Buffer([0x0a, 0, 0, 0, 0, 0, 0, 0]));
+          
 
   beforeExit(function() {
     assert.equal(1, n,  'Ensure set is called');
