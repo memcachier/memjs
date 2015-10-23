@@ -1,5 +1,13 @@
 # Change Log
 
+# Version 0.8.7
+
+* Fix global variable leak
+
+# Version 0.8.6
+
+* Add support for stats(key)
+
 # Version 0.8.5
 * Add quit command
 * Fixes to stats command
