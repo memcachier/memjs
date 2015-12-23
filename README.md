@@ -1,7 +1,7 @@
 MemJS
 =====
 
-[![npm](http://img.shields.io/npm/v/npm.svg)](https://www.npmjs.com/package/memjs)
+[![npm](http://img.shields.io/npm/v/memjs.svg)](https://www.npmjs.com/package/memjs)
 [![Build Status](https://secure.travis-ci.org/alevy/memjs.png)](http://travis-ci.org/alevy/memjs?branch=master)
 [![Gitter](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/alevy/memjs?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge)
 
