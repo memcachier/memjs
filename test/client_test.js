@@ -455,12 +455,15 @@ exports.testIncrementSuccessful = function(beforeExit, assert) {
   var n = 0;
   var callbn = 0;
   var dummyServer = new MemJS.Server();
+
+  var expectedExtras = '\0\0\0\0\0\0\0\5\0\0\0\0\0\0\0\0\0\0\0\0';
+
   dummyServer.write = function(requestBuf) {
     request = MemJS.Utils.parseMessage(requestBuf);
     assert.equal(5, request.header.opcode);
     assert.equal('number-increment-test', request.key);
     assert.equal('', request.val);
-    assert.equal('\0\0\0\0\0\0\0\5\0\0\0\0\0\0\0\0\0\0\0\0',
+    assert.equal(expectedExtras,
                  request.extras.toString());
     n += 1;
     var value = new Buffer(8);
@@ -477,9 +480,17 @@ exports.testIncrementSuccessful = function(beforeExit, assert) {
     assert.equal(null, err);
   });
 
+  expectedExtras = '\0\0\0\0\0\0\0\5\0\0\0\0\0\0\0\3\0\0\0\0';
+  client.increment('number-increment-test', 5, function(err, success, val) {
+    callbn += 1;
+    assert.equal(true, success);
+    assert.equal(6, val);
+    assert.equal(null, err);
+  }, null, 3);
+
   beforeExit(function() {
-    assert.equal(1, callbn,  'Ensure callbacks are called');
-    assert.equal(1, n,       'Ensure incr is called');
+    assert.equal(2, callbn,  'Ensure callbacks are called');
+    assert.equal(2, n,       'Ensure incr is called');
   });
 }
 
