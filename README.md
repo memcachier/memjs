@@ -23,7 +23,7 @@ Documentation can be found here: [http://amitlevy.com/projects/memjs/](http://am
 
 ### Supported Node.js versions ###
 
-MemJS is tested to work with version 0.6 or higher of Node.js.
+MemJS is tested to work with version 0.10 or higher of Node.js.
 
 ## Installation ##
 
