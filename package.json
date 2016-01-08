@@ -16,12 +16,12 @@
     "lib" : "./lib/memjs"
   },
   "scripts": {
-    "test": "eslint lib/memjs/ && NODE_PATH=lib/memjs/ expresso",
+    "test": "eslint ./lib/memjs/ ./test/ && tap -R spec ./test/*.js",
     "bench": "NODE_PATH=lib/memjs/ node bench/memjs.js"
   },
   "dependencies": {},
   "devDependencies": {"eslint":"1.10.3",
-                      "expresso": "0.9.*",
+                      "tap": "4.0.*",
                       "benchmark": "2.0.*",
                       "microtime": "2.0.*"}
 }
