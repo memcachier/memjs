@@ -23,5 +23,5 @@
   "devDependencies": {"eslint":"1.10.3",
                       "tap": "4.0.*",
                       "benchmark": "2.0.*",
-                      "microtime": "2.0.*"}
+                      "microtime": "2.1.*"}
 }
