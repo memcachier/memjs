@@ -540,6 +540,48 @@ test('PrependKeyDNE', function(t) {
   });
 });
 
+test('TouchSuccessful', function(t) {
+  var n = 0;
+  var dummyServer = new MemJS.Server();
+  dummyServer.write = function(seq, requestBuf) {
+    var request = MemJS.Utils.parseMessage(requestBuf);
+    t.equal('hello', request.key.toString());
+    t.equal('', request.val.toString());
+    t.equal('\0\0\4\0', request.extras.toString());
+    n += 1;
+    dummyServer.respond({header: {status: 0, opaque: request.header.opaque}});
+  };
+
+  var client = new MemJS.Client([dummyServer]);
+  client.touch('hello', 1024, function(err, val) {
+    t.equal(null, err);
+    t.equal(true, val);
+    t.equal(1, n, 'Ensure touch is called');
+    t.end();
+  });
+});
+
+test('TouchKeyDNE', function(t) {
+  var n = 0;
+  var dummyServer = new MemJS.Server();
+  dummyServer.write = function(seq, requestBuf) {
+    var request = MemJS.Utils.parseMessage(requestBuf);
+    t.equal('hello', request.key.toString());
+    t.equal('', request.val.toString());
+    t.equal('\0\0\4\0', request.extras.toString());
+    n += 1;
+    dummyServer.respond({header: {status: 1, opaque: request.header.opaque}});
+  };
+
+  var client = new MemJS.Client([dummyServer]);
+  client.touch('hello', 1024, function(err, val) {
+    t.equal(null, err);
+    t.equal(false, val);
+    t.equal(1, n, 'Ensure ptouch is called');
+    t.end();
+  });
+});
+
 test('Failover', function(t) {
   var n1 = 0;
   var n2 = 0;
