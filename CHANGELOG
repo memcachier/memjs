@@ -1,5 +1,14 @@
 # Change Log
 
+# Version 0.10.0
+
+* Fix issue with too many outstanding socket timeouts (issue #52)
+* Add support for touch
+* Add support for append
+* Add support for prepend
+* Fix lint issues across code base
+* Update microtime dependency
+
 # Version 0.9.1
 
 * Fix issue with no completing SASL auth before sending a request (issue #65)
