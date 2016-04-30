@@ -19,7 +19,7 @@ test('GetSuccessful', function(t) {
     t.equal('world', val);
     t.equal('flagshere', flags);
     t.equal(null, err);
-    t.equal(1, n,  'Ensure set is called');
+    t.equal(1, n, 'Ensure get is called');
     t.end();
   });
 });
@@ -39,7 +39,7 @@ test('GetNotFound', function(t) {
   client.get('hello', function(val, flags) {
     t.equal(null, val);
     t.equal(null, flags);
-    t.equal(1, n,  'Ensure set is called');
+    t.equal(1, n, 'Ensure get is called');
     t.end();
   });
 });
@@ -59,7 +59,7 @@ test('SetSuccessful', function(t) {
   client.set('hello', 'world', function(err, val) {
     t.equal(true, val);
     t.equal(null, err);
-    t.equal(1, n,  'Ensure set is called');
+    t.equal(1, n, 'Ensure set is called');
     t.end();
   });
 });
@@ -80,7 +80,7 @@ test('SetWithExpiration', function(t) {
   client.set('hello', 'world', function(err, val) {
     t.equal(null, err);
     t.equal(true, val);
-    t.equal(1, n,  'Ensure set is called');
+    t.equal(1, n, 'Ensure set is called');
     t.end();
   });
 });
@@ -100,7 +100,7 @@ test('SetUnsuccessful', function(t) {
   client.set('hello', 'world', function(err, val) {
     t.equal(null, val);
     t.equal('MemJS SET: ' + errors[3], err.message);
-    t.equal(1, n,  'Ensure set is called');
+    t.equal(1, n, 'Ensure set is called');
     t.end();
   });
 });
@@ -121,7 +121,7 @@ test('SetError', function(t) {
     t.notEqual(null, err);
     t.equal('This is an expected error.', err.message);
     t.equal(null, val);
-    t.equal(2, n,  'Ensure set is retried once');
+    t.equal(2, n, 'Ensure set is retried once');
     t.end();
   });
 });
@@ -180,13 +180,13 @@ test('SetErrorConcurrent', function(t) {
     return function() {
       called += 1;
       if (called < 2) return; 
-      t.equal(2, n,  'Ensure error is sent');
-      t.equal(1, callbn1,  'Ensure callback 1 is called once');
-      t.equal(1, callbn2,  'Ensure callback 2 is called once');
+      t.equal(2, n, 'Ensure error is sent');
+      t.equal(1, callbn1, 'Ensure callback 1 is called once');
+      t.equal(1, callbn2, 'Ensure callback 2 is called once');
       process.nextTick(function() {
-        t.equal(1, callbn1,  'Ensure callback 1 is called once');
-        t.equal(1, callbn2,  'Ensure callback 2 is called once');
-        t.equal(4, n,  'Ensure error sent again');
+        t.equal(1, callbn1, 'Ensure callback 1 is called once');
+        t.equal(1, callbn2, 'Ensure callback 2 is called once');
+        t.equal(4, n, 'Ensure error sent again');
         t.end();
       });
     };
@@ -207,7 +207,7 @@ test('SetUnicode', function(t) {
   var client = new MemJS.Client([dummyServer]);
   client.set('hello', 'éééoào', function(err, val) {
     t.equal(true, val);
-    t.equal(1, n,  'Ensure set is called');
+    t.equal(1, n, 'Ensure set is called');
     t.end();
   });
 });
@@ -228,7 +228,7 @@ test('AddSuccessful', function(t) {
   client.add('hello', 'world', function(err, val) {
     t.equal(null, err);
     t.equal(true, val);
-    t.equal(1, n,  'Ensure set is called');
+    t.equal(1, n, 'Ensure add is called');
     t.end();
   });
 });
@@ -248,7 +248,7 @@ test('AddKeyExists', function(t) {
   client.add('hello', 'world', function(err, val) {
     t.equal(null, err);
     t.equal(false, val);
-    t.equal(1, n,  'Ensure set is called');
+    t.equal(1, n, 'Ensure add is called');
     t.end();
   });
 });
@@ -269,7 +269,7 @@ test('ReplaceSuccessful', function(t) {
   client.replace('hello', 'world', function(err, val) {
     t.equal(null, err);
     t.equal(true, val);
-    t.equal(1, n,  'Ensure set is called');
+    t.equal(1, n, 'Ensure replace is called');
     t.end();
   });
 });
@@ -289,7 +289,7 @@ test('ReplaceKeyDNE', function(t) {
   client.replace('hello', 'world', function(err, val) {
     t.equal(null, err);
     t.equal(false, val);
-    t.equal(1, n,  'Ensure set is called');
+    t.equal(1, n, 'Ensure replace is called');
     t.end();
   });
 });
@@ -308,7 +308,7 @@ test('DeleteSuccessful', function(t) {
   client.delete('hello', function(err, val) {
     t.equal(null, err);
     t.equal(true, val);
-    t.equal(1, n,  'Ensure set is called');
+    t.equal(1, n, 'Ensure delete is called');
     t.end();
   });
 });
@@ -327,7 +327,7 @@ test('DeleteKeyDNE', function(t) {
   client.delete('hello', function(err, val) {
     t.equal(null, err);
     t.equal(false, val);
-    t.equal(1, n,  'Ensure set is called');
+    t.equal(1, n, 'Ensure delete is called');
     t.end();
   });
 });
@@ -378,7 +378,7 @@ test('Stats', function(t) {
     t.equal('1432', stats.bytes);
     t.equal('5432', stats.count);
     t.equal('myhostname:5544', server);
-    t.equal(1, n,  'Ensure set is called');
+    t.equal(1, n, 'Ensure stats is called');
     t.end();
   });
 });
@@ -430,8 +430,8 @@ test('IncrementSuccessful', function(t) {
     return function() {
       called += 1;
       if (called < 2) return; 
-      t.equal(2, n,  'Ensure increment is called twice');
-      t.equal(2, callbn,  'Ensure callback is called twice');
+      t.equal(2, n, 'Ensure increment is called twice');
+      t.equal(2, callbn, 'Ensure callback is called twice');
       t.end();
     };
   })();
@@ -455,7 +455,129 @@ test('DecrementSuccessful', function(t) {
   client.decrement('number-decrement-test', 5, function(err, val){
     t.equal(true, val);
     t.equal(null, err);
-    t.equal(1, n,       'Ensure decr is called');
+    t.equal(1, n, 'Ensure decr is called');
+    t.end();
+  });
+});
+
+test('AppendSuccessful', function(t) {
+  var n = 0;
+  var dummyServer = new MemJS.Server();
+  dummyServer.write = function(seq, requestBuf) {
+    var request = MemJS.Utils.parseMessage(requestBuf);
+    t.equal('hello', request.key.toString());
+    t.equal('world', request.val.toString());
+    n += 1;
+    dummyServer.respond({header: {status: 0, opaque: request.header.opaque}});
+  };
+
+  var client = new MemJS.Client([dummyServer], {expires: 1024});
+  client.append('hello', 'world', function(err, val) {
+    t.equal(null, err);
+    t.equal(true, val);
+    t.equal(1, n, 'Ensure append is called');
+    t.end();
+  });
+});
+
+test('AppendKeyDNE', function(t) {
+  var n = 0;
+  var dummyServer = new MemJS.Server();
+  dummyServer.write = function(seq, requestBuf) {
+    var request = MemJS.Utils.parseMessage(requestBuf);
+    t.equal('hello', request.key.toString());
+    t.equal('world', request.val.toString());
+    n += 1;
+    dummyServer.respond({header: {status: 1, opaque: request.header.opaque}});
+  };
+
+  var client = new MemJS.Client([dummyServer]);
+  client.append('hello', 'world', function(err, val) {
+    t.equal(null, err);
+    t.equal(false, val);
+    t.equal(1, n, 'Ensure append is called');
+    t.end();
+  });
+});
+
+test('PrependSuccessful', function(t) {
+  var n = 0;
+  var dummyServer = new MemJS.Server();
+  dummyServer.write = function(seq, requestBuf) {
+    var request = MemJS.Utils.parseMessage(requestBuf);
+    t.equal('hello', request.key.toString());
+    t.equal('world', request.val.toString());
+    n += 1;
+    dummyServer.respond({header: {status: 0, opaque: request.header.opaque}});
+  };
+
+  var client = new MemJS.Client([dummyServer], {expires: 1024});
+  client.prepend('hello', 'world', function(err, val) {
+    t.equal(null, err);
+    t.equal(true, val);
+    t.equal(1, n, 'Ensure prepend is called');
+    t.end();
+  });
+});
+
+test('PrependKeyDNE', function(t) {
+  var n = 0;
+  var dummyServer = new MemJS.Server();
+  dummyServer.write = function(seq, requestBuf) {
+    var request = MemJS.Utils.parseMessage(requestBuf);
+    t.equal('hello', request.key.toString());
+    t.equal('world', request.val.toString());
+    n += 1;
+    dummyServer.respond({header: {status: 1, opaque: request.header.opaque}});
+  };
+
+  var client = new MemJS.Client([dummyServer]);
+  client.prepend('hello', 'world', function(err, val) {
+    t.equal(null, err);
+    t.equal(false, val);
+    t.equal(1, n, 'Ensure prepend is called');
+    t.end();
+  });
+});
+
+test('TouchSuccessful', function(t) {
+  var n = 0;
+  var dummyServer = new MemJS.Server();
+  dummyServer.write = function(seq, requestBuf) {
+    var request = MemJS.Utils.parseMessage(requestBuf);
+    t.equal('hello', request.key.toString());
+    t.equal('', request.val.toString());
+    t.equal('\0\0\4\0', request.extras.toString());
+    n += 1;
+    dummyServer.respond({header: {status: 0, opaque: request.header.opaque}});
+  };
+
+  var client = new MemJS.Client([dummyServer]);
+  client.touch('hello', 1024, function(err, val) {
+    t.equal(null, err);
+    t.equal(true, val);
+    t.equal(1, n, 'Ensure touch is called');
+    t.end();
+  });
+});
+
+test('TouchKeyDNE', function(t) {
+  var n = 0;
+  var dummyServer = new MemJS.Server();
+  dummyServer.write = function(seq, requestBuf) {
+    var request = MemJS.Utils.parseMessage(requestBuf);
+    t.equal('hello', request.key.toString());
+    t.equal('', request.val.toString());
+    t.equal('\0\0\4\0', request.extras.toString());
+    n += 1;
+    dummyServer.respond({header: {status: 1, opaque: request.header.opaque}});
+  };
+
+  var client = new MemJS.Client([dummyServer]);
+  client.touch('hello', 1024, function(err, val) {
+    t.equal(null, err);
+    t.equal(false, val);
+    t.equal(1, n, 'Ensure ptouch is called');
     t.end();
   });
 });
