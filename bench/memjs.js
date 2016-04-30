@@ -1,9 +1,21 @@
-var memjs = require("memjs")
+var memjs = require("memjs");
 var header = require('header');
-var b = require("benchmark")
+var b = require("benchmark");
+
+function makeString(n) {
+  var possible = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+  var text = "";
+  var i;
+
+  for(i=0; i < n; i++ ) {
+    text += possible.charAt(Math.floor(Math.random() * possible.length));
+  }
+
+  return text;
+}
 
 var x = (function() {
-  suite = new b.Suite;
+  var suite = new b.Suite();
 
   var headerBuf = new Buffer([0x81, 1, 7, 0, 4, 0, 0, 1, 0, 0, 0, 9, 0, 0, 0, 0, 0x0a, 0, 0, 0, 0, 0, 0, 0]);
   var parsedHeader = header.fromBuffer(headerBuf);
@@ -20,10 +32,10 @@ var x = (function() {
   })
   // run async
   .run({ 'async': true });
-})();
+}());
 
 x = (function() {
-  suite = new b.Suite;
+  var suite = new b.Suite();
   var responseHeader = {
     magic: 0x81,
     opcode: 1,
@@ -34,7 +46,7 @@ x = (function() {
     totalBodyLength: 1024 * 10 + 15,
     opaque: 0,
     cas: new Buffer([0x0a, 0, 0, 0, 0, 0, 0, 0])
-  }
+  };
   var buf = new Buffer(24 + 15 + 1024 * 10);
   header.toBuffer(responseHeader).copy(buf);
   buf.write(makeString(55));
@@ -46,7 +58,8 @@ x = (function() {
     return arg;
   };
 
-  for (var i = 0; i < 10; i++) {
+  var i;
+  for (i = 0; i < 10; i++) {
     server.onResponse(dummyFunc);
   }
 
@@ -62,25 +75,15 @@ x = (function() {
   })
   // run async
   .run({ 'async': true });
-})();
-
-function makeString(n) {
-  var text = "";
-  var possible = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
-
-  for( var i=0; i < n; i++ )
-    text += possible.charAt(Math.floor(Math.random() * possible.length));
-
-  return text;
-}
+}());
 
 x = (function() {
-  suite = new b.Suite;
-  client = memjs.Client.create();
+  var suite = new b.Suite();
+  var client = memjs.Client.create();
 
   suite.cycles = 0;
   suite.add('Client#get', function() {
-    client.get("hello", function(err, val) {
+    client.get("hello", function(/* err, val */) {
       suite.cycles++;
     });
   })
@@ -88,9 +91,9 @@ x = (function() {
   .on('cycle', function(event) {
     console.log(String(event.target) + "     " + suite.cycles);
   });
-  client.set("hello", makeString(10240), function(err, val) {
+  client.set("hello", makeString(10240), function(/* err, val */) {
     // run async
     suite.run({ 'async': true });
   });
-})();
+}());
 

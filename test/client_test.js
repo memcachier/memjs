@@ -5,7 +5,7 @@ var MemJS = require('../');
 test('GetSuccessful', function(t) {
   var n = 0;
   var dummyServer = new MemJS.Server();
-  dummyServer.write = function(seq, requestBuf) {
+  dummyServer.write = function(requestBuf) {
     var request = MemJS.Utils.parseMessage(requestBuf);
     t.equal('hello', request.key.toString());
     n += 1;
@@ -27,7 +27,7 @@ test('GetSuccessful', function(t) {
 test('GetNotFound', function(t) {
   var n = 0;
   var dummyServer = new MemJS.Server();
-  dummyServer.write = function(seq, requestBuf) {
+  dummyServer.write = function(requestBuf) {
     var request = MemJS.Utils.parseMessage(requestBuf);
     t.equal('hello', request.key.toString());
     n += 1;
@@ -47,7 +47,7 @@ test('GetNotFound', function(t) {
 test('SetSuccessful', function(t) {
   var n = 0;
   var dummyServer = new MemJS.Server();
-  dummyServer.write = function(seq, requestBuf) {
+  dummyServer.write = function(requestBuf) {
     var request = MemJS.Utils.parseMessage(requestBuf);
     t.equal('hello', request.key.toString());
     t.equal('world', request.val.toString());
@@ -67,7 +67,7 @@ test('SetSuccessful', function(t) {
 test('SetWithExpiration', function(t) {
   var n = 0;
   var dummyServer = new MemJS.Server();
-  dummyServer.write = function(seq, requestBuf) {
+  dummyServer.write = function(requestBuf) {
     var request = MemJS.Utils.parseMessage(requestBuf);
     t.equal('hello', request.key.toString());
     t.equal('world', request.val.toString());
@@ -88,7 +88,7 @@ test('SetWithExpiration', function(t) {
 test('SetUnsuccessful', function(t) {
   var n = 0;
   var dummyServer = new MemJS.Server();
-  dummyServer.write = function(seq, requestBuf) {
+  dummyServer.write = function(requestBuf) {
     var request = MemJS.Utils.parseMessage(requestBuf);
     t.equal('hello', request.key.toString());
     t.equal('world', request.val.toString());
@@ -108,7 +108,7 @@ test('SetUnsuccessful', function(t) {
 test('SetError', function(t) {
   var n = 0;
   var dummyServer = new MemJS.Server();
-  dummyServer.write = function(seq, requestBuf) {
+  dummyServer.write = function(requestBuf) {
     var request = MemJS.Utils.parseMessage(requestBuf);
     t.equal('hello', request.key.toString());
     t.equal('world', request.val.toString());
@@ -129,7 +129,7 @@ test('SetError', function(t) {
 test('SetError', function(t) {
   var n = 0;
   var dummyServer = new MemJS.Server();
-  dummyServer.write = function(seq, requestBuf) {
+  dummyServer.write = function(requestBuf) {
     var request = MemJS.Utils.parseMessage(requestBuf);
     t.equal('hello', request.key.toString());
     t.equal('world', request.val.toString());
@@ -153,7 +153,7 @@ test('SetErrorConcurrent', function(t) {
   var callbn1 = 0;
   var callbn2 = 0;
   var dummyServer = new MemJS.Server();
-  dummyServer.write = function(/* seq, requestBuf */) {
+  dummyServer.write = function(/* requestBuf */) {
     process.nextTick(function() {
       n += 1;
       dummyServer.error({message: 'This is an expected error.'});
@@ -196,7 +196,7 @@ test('SetErrorConcurrent', function(t) {
 test('SetUnicode', function(t) {
   var n = 0;
   var dummyServer = new MemJS.Server();
-  dummyServer.write = function(seq, requestBuf) {
+  dummyServer.write = function(requestBuf) {
     var request = MemJS.Utils.parseMessage(requestBuf);
     t.equal('hello', request.key.toString());
     t.equal('éééoào', request.val.toString());
@@ -215,7 +215,7 @@ test('SetUnicode', function(t) {
 test('AddSuccessful', function(t) {
   var n = 0;
   var dummyServer = new MemJS.Server();
-  dummyServer.write = function(seq, requestBuf) {
+  dummyServer.write = function(requestBuf) {
     var request = MemJS.Utils.parseMessage(requestBuf);
     t.equal('hello', request.key.toString());
     t.equal('world', request.val.toString());
@@ -236,7 +236,7 @@ test('AddSuccessful', function(t) {
 test('AddKeyExists', function(t) {
   var n = 0;
   var dummyServer = new MemJS.Server();
-  dummyServer.write = function(seq, requestBuf) {
+  dummyServer.write = function(requestBuf) {
     var request = MemJS.Utils.parseMessage(requestBuf);
     t.equal('hello', request.key.toString());
     t.equal('world', request.val.toString());
@@ -256,7 +256,7 @@ test('AddKeyExists', function(t) {
 test('ReplaceSuccessful', function(t) {
   var n = 0;
   var dummyServer = new MemJS.Server();
-  dummyServer.write = function(seq, requestBuf) {
+  dummyServer.write = function(requestBuf) {
     var request = MemJS.Utils.parseMessage(requestBuf);
     t.equal('hello', request.key.toString());
     t.equal('world', request.val.toString());
@@ -277,7 +277,7 @@ test('ReplaceSuccessful', function(t) {
 test('ReplaceKeyDNE', function(t) {
   var n = 0;
   var dummyServer = new MemJS.Server();
-  dummyServer.write = function(seq, requestBuf) {
+  dummyServer.write = function(requestBuf) {
     var request = MemJS.Utils.parseMessage(requestBuf);
     t.equal('hello', request.key.toString());
     t.equal('world', request.val.toString());
@@ -297,7 +297,7 @@ test('ReplaceKeyDNE', function(t) {
 test('DeleteSuccessful', function(t) {
   var n = 0;
   var dummyServer = new MemJS.Server();
-  dummyServer.write = function(seq, requestBuf) {
+  dummyServer.write = function(requestBuf) {
     var request = MemJS.Utils.parseMessage(requestBuf);
     t.equal('hello', request.key.toString());
     n += 1;
@@ -316,7 +316,7 @@ test('DeleteSuccessful', function(t) {
 test('DeleteKeyDNE', function(t) {
   var n = 0;
   var dummyServer = new MemJS.Server();
-  dummyServer.write = function(seq, requestBuf) {
+  dummyServer.write = function(requestBuf) {
     var request = MemJS.Utils.parseMessage(requestBuf);
     t.equal('hello', request.key.toString());
     n += 1;
@@ -337,7 +337,7 @@ test('Flush',  function(t) {
   var dummyServer = new MemJS.Server();
   dummyServer.host = 'example.com';
   dummyServer.port = 1234;
-  dummyServer.write = function(seq, requestBuf) {
+  dummyServer.write = function(requestBuf) {
     var request = MemJS.Utils.parseMessage(requestBuf);
     t.equal(0x08, request.header.opcode);
     n += 1;
@@ -358,7 +358,7 @@ test('Stats', function(t) {
   var dummyServer = new MemJS.Server();
   dummyServer.host = 'myhostname';
   dummyServer.port = 5544;
-  dummyServer.write = function(seq, requestBuf) {
+  dummyServer.write = function(requestBuf) {
     var request = MemJS.Utils.parseMessage(requestBuf);
     t.equal(0x10, request.header.opcode);
     n += 1;
@@ -393,7 +393,7 @@ test('IncrementSuccessful', function(t) {
     '\0\0\0\0\0\0\0\5\0\0\0\0\0\0\0\3\0\0\0\0'
   ];
 
-  dummyServer.write = function(seq, requestBuf) {
+  dummyServer.write = function(requestBuf) {
     var request = MemJS.Utils.parseMessage(requestBuf);
     t.equal(5, request.header.opcode);
     t.equal('number-increment-test', request.key.toString());
@@ -440,7 +440,7 @@ test('IncrementSuccessful', function(t) {
 test('DecrementSuccessful', function(t) {
   var n = 0;
   var dummyServer = new MemJS.Server();
-  dummyServer.write = function(seq, requestBuf) {
+  dummyServer.write = function(requestBuf) {
     var request = MemJS.Utils.parseMessage(requestBuf);
     t.equal(6, request.header.opcode);
     t.equal('number-decrement-test', request.key.toString());
@@ -463,7 +463,7 @@ test('DecrementSuccessful', function(t) {
 test('AppendSuccessful', function(t) {
   var n = 0;
   var dummyServer = new MemJS.Server();
-  dummyServer.write = function(seq, requestBuf) {
+  dummyServer.write = function(requestBuf) {
     var request = MemJS.Utils.parseMessage(requestBuf);
     t.equal('hello', request.key.toString());
     t.equal('world', request.val.toString());
@@ -483,7 +483,7 @@ test('AppendSuccessful', function(t) {
 test('AppendKeyDNE', function(t) {
   var n = 0;
   var dummyServer = new MemJS.Server();
-  dummyServer.write = function(seq, requestBuf) {
+  dummyServer.write = function(requestBuf) {
     var request = MemJS.Utils.parseMessage(requestBuf);
     t.equal('hello', request.key.toString());
     t.equal('world', request.val.toString());
@@ -503,7 +503,7 @@ test('AppendKeyDNE', function(t) {
 test('PrependSuccessful', function(t) {
   var n = 0;
   var dummyServer = new MemJS.Server();
-  dummyServer.write = function(seq, requestBuf) {
+  dummyServer.write = function(requestBuf) {
     var request = MemJS.Utils.parseMessage(requestBuf);
     t.equal('hello', request.key.toString());
     t.equal('world', request.val.toString());
@@ -523,7 +523,7 @@ test('PrependSuccessful', function(t) {
 test('PrependKeyDNE', function(t) {
   var n = 0;
   var dummyServer = new MemJS.Server();
-  dummyServer.write = function(seq, requestBuf) {
+  dummyServer.write = function(requestBuf) {
     var request = MemJS.Utils.parseMessage(requestBuf);
     t.equal('hello', request.key.toString());
     t.equal('world', request.val.toString());
@@ -543,7 +543,7 @@ test('PrependKeyDNE', function(t) {
 test('TouchSuccessful', function(t) {
   var n = 0;
   var dummyServer = new MemJS.Server();
-  dummyServer.write = function(seq, requestBuf) {
+  dummyServer.write = function(requestBuf) {
     var request = MemJS.Utils.parseMessage(requestBuf);
     t.equal('hello', request.key.toString());
     t.equal('', request.val.toString());
@@ -564,7 +564,7 @@ test('TouchSuccessful', function(t) {
 test('TouchKeyDNE', function(t) {
   var n = 0;
   var dummyServer = new MemJS.Server();
-  dummyServer.write = function(seq, requestBuf) {
+  dummyServer.write = function(requestBuf) {
     var request = MemJS.Utils.parseMessage(requestBuf);
     t.equal('hello', request.key.toString());
     t.equal('', request.val.toString());
@@ -586,12 +586,12 @@ test('Failover', function(t) {
   var n1 = 0;
   var n2 = 0;
   var dummyServer1 = new MemJS.Server();
-  dummyServer1.write = function(/* seq, requestBuf*/) {
+  dummyServer1.write = function(/* requestBuf*/) {
     n1 += 1;
     dummyServer1.error(new Error('connection failure'));
   };
   var dummyServer2 = new MemJS.Server();
-  dummyServer2.write = function(seq, requestBuf) {
+  dummyServer2.write = function(requestBuf) {
     n2 += 1;
     var request = MemJS.Utils.parseMessage(requestBuf);
     dummyServer2.respond({header: {status: 0, opaque: request.header.opaque}});
@@ -614,12 +614,12 @@ exports.testFailoverRecovery = function(beforeExit, assert) {
   var n1 = 0;
   var n2 = 0;
   var dummyServer1 = new MemJS.Server();
-  dummyServer1.write = function(seq, requestBuf) {
+  dummyServer1.write = function(requestBuf) {
     n1 += 1;
     dummyServer1.error(new Error("connection failure"));
   }
   var dummyServer2 = new MemJS.Server();
-  dummyServer2.write = function(seq, requestBuf) {
+  dummyServer2.write = function(requestBuf) {
     n2 += 1;
     dummyServer2.respond({header: {status: 0, opaque: request.header.opaque}});
   }
@@ -630,7 +630,7 @@ exports.testFailoverRecovery = function(beforeExit, assert) {
     assert.equal(null, err);
   });
 
-  dummyServer1.write = function(seq, requestBuf) {
+  dummyServer1.write = function(requestBuf) {
     n1 += 1;
     dummyServer1.respond({header: {status: 0, opaque: request.header.opaque}});
   }
