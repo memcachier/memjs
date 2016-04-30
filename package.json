@@ -17,7 +17,8 @@
   },
   "scripts": {
     "test": "eslint ./lib/memjs/ ./test/ && tap -R spec ./test/*.js",
-    "bench": "NODE_PATH=lib/memjs/ node bench/memjs.js"
+    "bench": "NODE_PATH=lib/memjs/ node bench/memjs.js",
+    "bench-timers": "NODE_PATH=lib/memjs/ node bench/timers.js"
   },
   "dependencies": {},
   "devDependencies": {"eslint":"1.10.3",
