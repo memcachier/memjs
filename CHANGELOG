@@ -1,5 +1,9 @@
 # Change Log
 
+# Version ?
+
+* Add support for value in decrement callback (issue #88)
+
 # Version 0.10.0
 
 * Fix issue with too many outstanding socket timeouts (issue #52)
