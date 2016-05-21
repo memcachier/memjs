@@ -448,12 +448,18 @@ test('DecrementSuccessful', function(t) {
     t.equal('\0\0\0\0\0\0\0\5\0\0\0\0\0\0\0\0\0\0\0\0',
                  request.extras.toString());
     n += 1;
-    dummyServer.respond({header: {status: 0, opaque: request.header.opaque}});
+    process.nextTick(function() {
+      var value = new Buffer(8);
+      value.writeUInt32BE(request.header.opcode, 4);
+      value.writeUInt32BE(0, 0);
+      dummyServer.respond({header: {status: 0, opaque: request.header.opaque}, val: value});
+    });
   };
 
   var client = new MemJS.Client([dummyServer]);
-  client.decrement('number-decrement-test', 5, function(err, val){
-    t.equal(true, val);
+  client.decrement('number-decrement-test', 5, function(err, success, val){
+    t.equal(true, success);
+    t.equal(6, val);
     t.equal(null, err);
     t.equal(1, n, 'Ensure decr is called');
     t.end();
