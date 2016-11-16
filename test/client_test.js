@@ -56,6 +56,26 @@ test('SetSuccessful', function(t) {
   };
 
   var client = new MemJS.Client([dummyServer]);
+  client.set('hello', 'world', {}, function(err, val) {
+    t.equal(true, val);
+    t.equal(null, err);
+    t.equal(1, n, 'Ensure set is called');
+    t.end();
+  });
+});
+
+test('SetDeprecated', function(t) {
+  var n = 0;
+  var dummyServer = new MemJS.Server();
+  dummyServer.write = function(requestBuf) {
+    var request = MemJS.Utils.parseMessage(requestBuf);
+    t.equal('hello', request.key.toString());
+    t.equal('world', request.val.toString());
+    n += 1;
+    dummyServer.respond({header: {status: 0, opaque: request.header.opaque}});
+  };
+
+  var client = new MemJS.Client([dummyServer]);
   client.set('hello', 'world', function(err, val) {
     t.equal(true, val);
     t.equal(null, err);
@@ -77,7 +97,7 @@ test('SetWithExpiration', function(t) {
   };
 
   var client = new MemJS.Client([dummyServer], {expires: 1024});
-  client.set('hello', 'world', function(err, val) {
+  client.set('hello', 'world', {}, function(err, val) {
     t.equal(null, err);
     t.equal(true, val);
     t.equal(1, n, 'Ensure set is called');
@@ -97,7 +117,7 @@ test('SetUnsuccessful', function(t) {
   };
 
   var client = new MemJS.Client([dummyServer]);
-  client.set('hello', 'world', function(err, val) {
+  client.set('hello', 'world', {}, function(err, val) {
     t.equal(null, val);
     t.equal('MemJS SET: ' + errors[3], err.message);
     t.equal(1, n, 'Ensure set is called');
@@ -117,7 +137,7 @@ test('SetError', function(t) {
   };
 
   var client = new MemJS.Client([dummyServer]);
-  client.set('hello', 'world', function(err, val) {
+  client.set('hello', 'world', {}, function(err, val) {
     t.notEqual(null, err);
     t.equal('This is an expected error.', err.message);
     t.equal(null, val);
@@ -140,7 +160,7 @@ test('SetError', function(t) {
   };
 
   var client = new MemJS.Client([dummyServer], {retries: 2});
-  client.set('hello', 'world', function(err /*, val */) {
+  client.set('hello', 'world', {}, function(err /*, val */) {
     t.equal(2, n, 'Ensure set is retried once');
     t.ok(err, 'Ensure callback called with error');
     t.equal('This is an expected error.', err.message);
@@ -161,14 +181,14 @@ test('SetErrorConcurrent', function(t) {
   };
 
   var client = new MemJS.Client([dummyServer], {retries: 2});
-  client.set('hello', 'world', function(err /*, val */) {
+  client.set('hello', 'world', {}, function(err /*, val */) {
     t.ok(err, 'Ensure callback called with error');
     t.equal('This is an expected error.', err.message);
     callbn1 += 1;
     done();
   });
 
-  client.set('foo', 'bar', function(err /*, val */) {
+  client.set('foo', 'bar', {}, function(err /*, val */) {
     t.ok(err, 'Ensure callback called with error');
     t.equal('This is an expected error.', err.message);
     callbn2 += 1;
@@ -205,7 +225,7 @@ test('SetUnicode', function(t) {
   };
 
   var client = new MemJS.Client([dummyServer]);
-  client.set('hello', 'éééoào', function(err, val) {
+  client.set('hello', 'éééoào', {}, function(err, val) {
     t.equal(true, val);
     t.equal(1, n, 'Ensure set is called');
     t.end();
@@ -213,6 +233,27 @@ test('SetUnicode', function(t) {
 });
 
 test('AddSuccessful', function(t) {
+  var n = 0;
+  var dummyServer = new MemJS.Server();
+  dummyServer.write = function(requestBuf) {
+    var request = MemJS.Utils.parseMessage(requestBuf);
+    t.equal('hello', request.key.toString());
+    t.equal('world', request.val.toString());
+    t.equal('0000000000000400', request.extras.toString('hex'));
+    n += 1;
+    dummyServer.respond({header: {status: 0, opaque: request.header.opaque}});
+  };
+
+  var client = new MemJS.Client([dummyServer], {expires: 1024});
+  client.add('hello', 'world', {}, function(err, val) {
+    t.equal(null, err);
+    t.equal(true, val);
+    t.equal(1, n, 'Ensure add is called');
+    t.end();
+  });
+});
+
+test('AddDeprecated', function(t) {
   var n = 0;
   var dummyServer = new MemJS.Server();
   dummyServer.write = function(requestBuf) {
@@ -245,7 +286,7 @@ test('AddKeyExists', function(t) {
   };
 
   var client = new MemJS.Client([dummyServer]);
-  client.add('hello', 'world', function(err, val) {
+  client.add('hello', 'world', {}, function(err, val) {
     t.equal(null, err);
     t.equal(false, val);
     t.equal(1, n, 'Ensure add is called');
@@ -254,6 +295,27 @@ test('AddKeyExists', function(t) {
 });
 
 test('ReplaceSuccessful', function(t) {
+  var n = 0;
+  var dummyServer = new MemJS.Server();
+  dummyServer.write = function(requestBuf) {
+    var request = MemJS.Utils.parseMessage(requestBuf);
+    t.equal('hello', request.key.toString());
+    t.equal('world', request.val.toString());
+    t.equal('\0\0\0\0\0\0\4\0', request.extras.toString());
+    n += 1;
+    dummyServer.respond({header: {status: 0, opaque: request.header.opaque}});
+  };
+
+  var client = new MemJS.Client([dummyServer], {expires: 1024});
+  client.replace('hello', 'world', {}, function(err, val) {
+    t.equal(null, err);
+    t.equal(true, val);
+    t.equal(1, n, 'Ensure replace is called');
+    t.end();
+  });
+});
+
+test('ReplaceDeprecated', function(t) {
   var n = 0;
   var dummyServer = new MemJS.Server();
   dummyServer.write = function(requestBuf) {
@@ -286,7 +348,7 @@ test('ReplaceKeyDNE', function(t) {
   };
 
   var client = new MemJS.Client([dummyServer]);
-  client.replace('hello', 'world', function(err, val) {
+  client.replace('hello', 'world', {}, function(err, val) {
     t.equal(null, err);
     t.equal(false, val);
     t.equal(1, n, 'Ensure replace is called');
@@ -409,6 +471,60 @@ test('IncrementSuccessful', function(t) {
   };
 
   var client = new MemJS.Client([dummyServer]);
+  client.increment('number-increment-test', 5, {}, function(err, success, val){
+    callbn += 1;
+    t.equal(true, success);
+    t.equal(6, val);
+    t.equal(null, err);
+    done();
+  });
+
+  client.increment('number-increment-test', 5, {initial: 3}, function(err, success, val) {
+    callbn += 1;
+    t.equal(true, success);
+    t.equal(6, val);
+    t.equal(null, err);
+    done();
+  });
+
+  var done =(function() {
+    var called = 0;
+    return function() {
+      called += 1;
+      if (called < 2) return; 
+      t.equal(2, n, 'Ensure increment is called twice');
+      t.equal(2, callbn, 'Ensure callback is called twice');
+      t.end();
+    };
+  })();
+});
+
+test('IncrementDeprecated', function(t) {
+  var n = 0;
+  var callbn = 0;
+  var dummyServer = new MemJS.Server();
+
+  var expectedExtras = [
+    '\0\0\0\0\0\0\0\5\0\0\0\0\0\0\0\0\0\0\0\0',
+    '\0\0\0\0\0\0\0\5\0\0\0\0\0\0\0\3\0\0\0\0'
+  ];
+
+  dummyServer.write = function(requestBuf) {
+    var request = MemJS.Utils.parseMessage(requestBuf);
+    t.equal(5, request.header.opcode);
+    t.equal('number-increment-test', request.key.toString());
+    t.equal('', request.val.toString());
+    t.equal(expectedExtras[n], request.extras.toString());
+    n += 1;
+    process.nextTick(function() {
+      var value = new Buffer(8);
+      value.writeUInt32BE(request.header.opcode + 1, 4);
+      value.writeUInt32BE(0, 0);
+      dummyServer.respond({header: {status: 0, opaque: request.header.opaque}, val: value});
+    });
+  };
+
+  var client = new MemJS.Client([dummyServer]);
   client.increment('number-increment-test', 5, function(err, success, val){
     callbn += 1;
     t.equal(true, success);
@@ -457,7 +573,36 @@ test('DecrementSuccessful', function(t) {
   };
 
   var client = new MemJS.Client([dummyServer]);
-  client.decrement('number-decrement-test', 5, function(err, success, val){
+  client.decrement('number-decrement-test', 5, {}, function(err, success, val) {
+    t.equal(true, success);
+    t.equal(6, val);
+    t.equal(null, err);
+    t.equal(1, n, 'Ensure decr is called');
+    t.end();
+  });
+});
+
+test('DecrementDeprecated', function(t) {
+  var n = 0;
+  var dummyServer = new MemJS.Server();
+  dummyServer.write = function(requestBuf) {
+    var request = MemJS.Utils.parseMessage(requestBuf);
+    t.equal(6, request.header.opcode);
+    t.equal('number-decrement-test', request.key.toString());
+    t.equal('', request.val.toString());
+    t.equal('\0\0\0\0\0\0\0\5\0\0\0\0\0\0\0\0\0\0\0\0',
+                 request.extras.toString());
+    n += 1;
+    process.nextTick(function() {
+      var value = new Buffer(8);
+      value.writeUInt32BE(request.header.opcode, 4);
+      value.writeUInt32BE(0, 0);
+      dummyServer.respond({header: {status: 0, opaque: request.header.opaque}, val: value});
+    });
+  };
+
+  var client = new MemJS.Client([dummyServer]);
+  client.decrement('number-decrement-test', 5, function(err, success, val) {
     t.equal(true, success);
     t.equal(6, val);
     t.equal(null, err);
