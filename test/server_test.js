@@ -1,7 +1,6 @@
 var test = require('tap').test;
 var MemJS = require('../');
 var makeRequestBuffer = require('../lib/memjs/utils').makeRequestBuffer;
-var header = require('../lib/memjs/header');
 
 test('AuthListMechanisms', function(t) {
   var expectedBuf = makeRequestBuffer(0x20, '', '', '');
@@ -19,7 +18,7 @@ test('AuthListMechanisms', function(t) {
 
 test('ResponseHandler with authentication error', function(t) {
   var dummySocket = {
-    write: function(buf) {},
+    write: function() {},
     destroy: function() {}
   };
 
@@ -27,18 +26,18 @@ test('ResponseHandler with authentication error', function(t) {
   server._socket = dummySocket;
 
   server.onError('test', function(err) {
-    t.equal('Memcached server authentication failed!', err)
-  })
+    t.equal('Memcached server authentication failed!', err);
+  });
 
   // Simulate a memcached server response, with an authentication error (no SASL configured, wrong credentials, ...).
   var responseBuf = makeRequestBuffer(0x21, '', '', '');
   // Override status
   // 0x20 = Authentication required / Not Successful
-  responseBuf.writeUInt16BE(0x20, 6)
+  responseBuf.writeUInt16BE(0x20, 6);
 
   server.responseHandler(responseBuf);
 
-  t.end()
+  t.end();
 });
 
 test('Authenticate', function(t) {
