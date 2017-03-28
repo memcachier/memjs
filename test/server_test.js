@@ -17,19 +17,14 @@ test('AuthListMechanisms', function(t) {
 
 
 test('ResponseHandler with authentication error', function(t) {
-  var dummySocket = {
-    write: function() {},
-    destroy: function() {}
-  };
-
-  var server = new MemJS.Server('localhost', 11211, 'test', 'test');
-  server._socket = dummySocket;
+  var server = new MemJS.Server('localhost', 11211);
 
   server.onError('test', function(err) {
     t.equal('Memcached server authentication failed!', err);
   });
 
-  // Simulate a memcached server response, with an authentication error (no SASL configured, wrong credentials, ...).
+  // Simulate a memcached server response, with an authentication error
+  // No SASL configured, wrong credentials, ...
   var responseBuf = makeRequestBuffer(0x21, '', '', '');
   // Override status
   // 0x20 = Authentication required / Not Successful
