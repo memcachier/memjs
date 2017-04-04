@@ -1,8 +1,9 @@
 # Change Log
 
-# Version ?
+# Version 0.10.1
 
 * Add support for value in decrement callback (issue #88)
+* Better authentication error handling (PR #91)
 
 # Version 0.10.0
 
