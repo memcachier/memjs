@@ -1,5 +1,9 @@
 # Change Log
 
+# Version 0.10.2
+
+* Fixes a backwards compatibility bug in `set` (issue #94)
+
 # Version 0.10.1
 
 * Add support for value in decrement callback (issue #88)
