@@ -72,19 +72,20 @@ You can start using MemJS immediately from the node console:
 ### Settings Values
 
 ``` javascript
-client.set('hello', 'world', function(err, val) {
+client.set('hello', 'world', {expires:600}, function(err, val) {
 
-}, 600);
+});
 ```
 
 The `set(key, val, callback, expiration)` function accepts the following parameters.
 
 * `key`: key to set
 * `val`: value to set
+* `options`: an object of options. Currently supports only the key `expires`, which is a time interval, in seconds, after which memcached will expire the object
 * `callback`: a callback invoked after the value is set
   * `err` : error
   * `val` : value retrieved
-* `expiration`: time interval, in seconds, after which memcached will expire the object
+
 
 ### Getting Values
 
