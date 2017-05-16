@@ -294,6 +294,28 @@ test('AddDeprecated', function(t) {
   });
 });
 
+// Currently the same as AddDeprecated as AddDeprecated do not test the expire option.
+test('AddWithoutOption', function(t) {
+  var n = 0;
+  var dummyServer = new MemJS.Server();
+  dummyServer.write = function(requestBuf) {
+    var request = MemJS.Utils.parseMessage(requestBuf);
+    t.equal('hello', request.key.toString());
+    t.equal('world', request.val.toString());
+    t.equal('0000000000000400', request.extras.toString('hex'));
+    n += 1;
+    dummyServer.respond({header: {status: 0, opaque: request.header.opaque}});
+  };
+
+  var client = new MemJS.Client([dummyServer], {expires: 1024});
+  client.add('hello', 'world', function(err, val) {
+    t.equal(null, err);
+    t.equal(true, val);
+    t.equal(1, n, 'Ensure add is called');
+    t.end();
+  });
+});
+
 test('AddKeyExists', function(t) {
   var n = 0;
   var dummyServer = new MemJS.Server();
