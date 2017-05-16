@@ -105,6 +105,26 @@ test('SetWithExpiration', function(t) {
   });
 });
 
+test('SetWitoutOption', function(t) {
+  var n = 0;
+  var dummyServer = new MemJS.Server();
+  dummyServer.write = function(requestBuf) {
+    var request = MemJS.Utils.parseMessage(requestBuf);
+    t.equal('hello', request.key.toString());
+    t.equal('world', request.val.toString());
+    n += 1;
+    dummyServer.respond({header: {status: 0, opaque: request.header.opaque}});
+  };
+
+  var client = new MemJS.Client([dummyServer]);
+  client.set('hello', 'world', function(err, val) {
+    t.equal(true, val);
+    t.equal(null, err);
+    t.equal(1, n, 'Ensure set is called');
+    t.end();
+  });
+});
+
 test('SetUnsuccessful', function(t) {
   var n = 0;
   var dummyServer = new MemJS.Server();
@@ -199,7 +219,7 @@ test('SetErrorConcurrent', function(t) {
     var called = 0;
     return function() {
       called += 1;
-      if (called < 2) return; 
+      if (called < 2) return;
       t.equal(2, n, 'Ensure error is sent');
       t.equal(1, callbn1, 'Ensure callback 1 is called once');
       t.equal(1, callbn2, 'Ensure callback 2 is called once');
@@ -491,7 +511,7 @@ test('IncrementSuccessful', function(t) {
     var called = 0;
     return function() {
       called += 1;
-      if (called < 2) return; 
+      if (called < 2) return;
       t.equal(2, n, 'Ensure increment is called twice');
       t.equal(2, callbn, 'Ensure callback is called twice');
       t.end();
@@ -545,7 +565,7 @@ test('IncrementDeprecated', function(t) {
     var called = 0;
     return function() {
       called += 1;
-      if (called < 2) return; 
+      if (called < 2) return;
       t.equal(2, n, 'Ensure increment is called twice');
       t.equal(2, callbn, 'Ensure callback is called twice');
       t.end();
