@@ -9,7 +9,7 @@ MemJS is a pure Node.js client library for using memcache, in particular, the
 [MemCachier](http://memcachier.com/) service. It
 uses the binary protocol and support SASL authentication.
 
-Documentation can be found here: [http://amitlevy.com/projects/memjs/](http://amitlevy.com/projects/memjs/)
+Documentation can be found here: [https://memjs.netlify.com/](https://memjs.netlify.com/)
 
 ## TOC
 
@@ -97,10 +97,13 @@ client.get('hello', function(err, val) {
 
 The `get(key, callback)` function accepts the following parameters.
 
+Note that values are always returned as `Buffer`s, regardless of whether a
+`Buffer` or `String` was passed to `set`.
+
 * `key`: key to retrieve
 * `callback`: a callback invoked after the value is retrieved
   * `err` : error
-  * `val` : value retrieved
+  * `val` : value retrieved as a `Buffer`
 
 ## Contributing
 
