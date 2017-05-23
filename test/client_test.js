@@ -64,7 +64,7 @@ test('SetSuccessful', function(t) {
   });
 });
 
-test('SetDeprecated', function(t) {
+test('SetSuccessfulWithoutOption', function(t) {
   var n = 0;
   var dummyServer = new MemJS.Server();
   dummyServer.write = function(requestBuf) {
@@ -199,7 +199,7 @@ test('SetErrorConcurrent', function(t) {
     var called = 0;
     return function() {
       called += 1;
-      if (called < 2) return; 
+      if (called < 2) return;
       t.equal(2, n, 'Ensure error is sent');
       t.equal(1, callbn1, 'Ensure callback 1 is called once');
       t.equal(1, callbn2, 'Ensure callback 2 is called once');
@@ -253,7 +253,7 @@ test('AddSuccessful', function(t) {
   });
 });
 
-test('AddDeprecated', function(t) {
+test('AddSuccessfulWithoutOption', function(t) {
   var n = 0;
   var dummyServer = new MemJS.Server();
   dummyServer.write = function(requestBuf) {
@@ -315,7 +315,7 @@ test('ReplaceSuccessful', function(t) {
   });
 });
 
-test('ReplaceDeprecated', function(t) {
+test('ReplaceSuccessfulWithoutOption', function(t) {
   var n = 0;
   var dummyServer = new MemJS.Server();
   dummyServer.write = function(requestBuf) {
@@ -479,7 +479,7 @@ test('IncrementSuccessful', function(t) {
     done();
   });
 
-  client.increment('number-increment-test', 5, {initial: 3}, function(err, success, val) {
+  client.increment('number-increment-test', 5, { initial: 3 }, function(err, success, val) {
     callbn += 1;
     t.equal(true, success);
     t.equal(6, val);
@@ -491,61 +491,7 @@ test('IncrementSuccessful', function(t) {
     var called = 0;
     return function() {
       called += 1;
-      if (called < 2) return; 
-      t.equal(2, n, 'Ensure increment is called twice');
-      t.equal(2, callbn, 'Ensure callback is called twice');
-      t.end();
-    };
-  })();
-});
-
-test('IncrementDeprecated', function(t) {
-  var n = 0;
-  var callbn = 0;
-  var dummyServer = new MemJS.Server();
-
-  var expectedExtras = [
-    '\0\0\0\0\0\0\0\5\0\0\0\0\0\0\0\0\0\0\0\0',
-    '\0\0\0\0\0\0\0\5\0\0\0\0\0\0\0\3\0\0\0\0'
-  ];
-
-  dummyServer.write = function(requestBuf) {
-    var request = MemJS.Utils.parseMessage(requestBuf);
-    t.equal(5, request.header.opcode);
-    t.equal('number-increment-test', request.key.toString());
-    t.equal('', request.val.toString());
-    t.equal(expectedExtras[n], request.extras.toString());
-    n += 1;
-    process.nextTick(function() {
-      var value = new Buffer(8);
-      value.writeUInt32BE(request.header.opcode + 1, 4);
-      value.writeUInt32BE(0, 0);
-      dummyServer.respond({header: {status: 0, opaque: request.header.opaque}, val: value});
-    });
-  };
-
-  var client = new MemJS.Client([dummyServer]);
-  client.increment('number-increment-test', 5, function(err, success, val){
-    callbn += 1;
-    t.equal(true, success);
-    t.equal(6, val);
-    t.equal(null, err);
-    done();
-  });
-
-  client.increment('number-increment-test', 5, function(err, success, val) {
-    callbn += 1;
-    t.equal(true, success);
-    t.equal(6, val);
-    t.equal(null, err);
-    done();
-  }, null, 3);
-
-  var done =(function() {
-    var called = 0;
-    return function() {
-      called += 1;
-      if (called < 2) return; 
+      if (called < 2) return;
       t.equal(2, n, 'Ensure increment is called twice');
       t.equal(2, callbn, 'Ensure callback is called twice');
       t.end();
@@ -582,7 +528,7 @@ test('DecrementSuccessful', function(t) {
   });
 });
 
-test('DecrementDeprecated', function(t) {
+test('DecrementSuccessfulWithoutOption', function(t) {
   var n = 0;
   var dummyServer = new MemJS.Server();
   dummyServer.write = function(requestBuf) {
@@ -758,49 +704,3 @@ test('Failover', function(t) {
 
 });
 return;
-
-/*
-exports.testFailoverRecovery = function(beforeExit, assert) {
-  Date.now = function() { return 1; }
-  var n1 = 0;
-  var n2 = 0;
-  var dummyServer1 = new MemJS.Server();
-  dummyServer1.write = function(requestBuf) {
-    n1 += 1;
-    dummyServer1.error(new Error("connection failure"));
-  }
-  var dummyServer2 = new MemJS.Server();
-  dummyServer2.write = function(requestBuf) {
-    n2 += 1;
-    dummyServer2.respond({header: {status: 0, opaque: request.header.opaque}});
-  }
-
-  var client = new MemJS.Client([dummyServer1, dummyServer2],
-        {failover: true});
-  client.get('\0', function(err, val){
-    assert.equal(null, err);
-  });
-
-  dummyServer1.write = function(requestBuf) {
-    n1 += 1;
-    dummyServer1.respond({header: {status: 0, opaque: request.header.opaque}});
-  }
-
-  client.get('\0', function(err, val){
-    assert.equal(null, err);
-  });
-
-  Date.now = function() {
-    return 60001;
-  }
-
-  client.get('\0', function(err, val){
-    assert.equal(null, err);
-  });
-
-  beforeExit(function() {
-    assert.equal(3, n1);
-    assert.equal(2, n2);
-  });
-}
-*/
