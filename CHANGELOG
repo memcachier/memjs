@@ -1,5 +1,10 @@
 # Change Log
 
+# Version 1.0.0
+
+* Deprecation for end of function arguments no longer supported. (PR #99)
+* The option argument is no longer mandatory
+
 # Version 0.10.2
 
 * Fixes a backwards compatibility bug in `set` (issue #94)
@@ -112,5 +117,3 @@
 
 * Added `err` parameter to all callbacks from client
 * Flush command
-
-
