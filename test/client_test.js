@@ -479,67 +479,13 @@ test('IncrementSuccessful', function(t) {
     done();
   });
 
-  client.increment('number-increment-test', 5, {initial: 3}, function(err, success, val) {
+  client.increment('number-increment-test', 5, { initial: 3 }, function(err, success, val) {
     callbn += 1;
     t.equal(true, success);
     t.equal(6, val);
     t.equal(null, err);
     done();
   });
-
-  var done =(function() {
-    var called = 0;
-    return function() {
-      called += 1;
-      if (called < 2) return;
-      t.equal(2, n, 'Ensure increment is called twice');
-      t.equal(2, callbn, 'Ensure callback is called twice');
-      t.end();
-    };
-  })();
-});
-
-test('IncrementDeprecated', function(t) {
-  var n = 0;
-  var callbn = 0;
-  var dummyServer = new MemJS.Server();
-
-  var expectedExtras = [
-    '\0\0\0\0\0\0\0\5\0\0\0\0\0\0\0\0\0\0\0\0',
-    '\0\0\0\0\0\0\0\5\0\0\0\0\0\0\0\3\0\0\0\0'
-  ];
-
-  dummyServer.write = function(requestBuf) {
-    var request = MemJS.Utils.parseMessage(requestBuf);
-    t.equal(5, request.header.opcode);
-    t.equal('number-increment-test', request.key.toString());
-    t.equal('', request.val.toString());
-    t.equal(expectedExtras[n], request.extras.toString());
-    n += 1;
-    process.nextTick(function() {
-      var value = new Buffer(8);
-      value.writeUInt32BE(request.header.opcode + 1, 4);
-      value.writeUInt32BE(0, 0);
-      dummyServer.respond({header: {status: 0, opaque: request.header.opaque}, val: value});
-    });
-  };
-
-  var client = new MemJS.Client([dummyServer]);
-  client.increment('number-increment-test', 5, function(err, success, val){
-    callbn += 1;
-    t.equal(true, success);
-    t.equal(6, val);
-    t.equal(null, err);
-    done();
-  });
-
-  client.increment('number-increment-test', 5, function(err, success, val) {
-    callbn += 1;
-    t.equal(true, success);
-    t.equal(6, val);
-    t.equal(null, err);
-    done();
-  }, null, 3);
 
   var done =(function() {
     var called = 0;
