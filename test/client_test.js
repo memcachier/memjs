@@ -64,7 +64,7 @@ test('SetSuccessful', function(t) {
   });
 });
 
-test('SetDeprecated', function(t) {
+test('SetSuccessfulWithoutOption', function(t) {
   var n = 0;
   var dummyServer = new MemJS.Server();
   dummyServer.write = function(requestBuf) {
@@ -100,26 +100,6 @@ test('SetWithExpiration', function(t) {
   client.set('hello', 'world', {}, function(err, val) {
     t.equal(null, err);
     t.equal(true, val);
-    t.equal(1, n, 'Ensure set is called');
-    t.end();
-  });
-});
-
-test('SetWitoutOption', function(t) {
-  var n = 0;
-  var dummyServer = new MemJS.Server();
-  dummyServer.write = function(requestBuf) {
-    var request = MemJS.Utils.parseMessage(requestBuf);
-    t.equal('hello', request.key.toString());
-    t.equal('world', request.val.toString());
-    n += 1;
-    dummyServer.respond({header: {status: 0, opaque: request.header.opaque}});
-  };
-
-  var client = new MemJS.Client([dummyServer]);
-  client.set('hello', 'world', function(err, val) {
-    t.equal(true, val);
-    t.equal(null, err);
     t.equal(1, n, 'Ensure set is called');
     t.end();
   });
@@ -273,29 +253,7 @@ test('AddSuccessful', function(t) {
   });
 });
 
-test('AddDeprecated', function(t) {
-  var n = 0;
-  var dummyServer = new MemJS.Server();
-  dummyServer.write = function(requestBuf) {
-    var request = MemJS.Utils.parseMessage(requestBuf);
-    t.equal('hello', request.key.toString());
-    t.equal('world', request.val.toString());
-    t.equal('0000000000000400', request.extras.toString('hex'));
-    n += 1;
-    dummyServer.respond({header: {status: 0, opaque: request.header.opaque}});
-  };
-
-  var client = new MemJS.Client([dummyServer], {expires: 1024});
-  client.add('hello', 'world', function(err, val) {
-    t.equal(null, err);
-    t.equal(true, val);
-    t.equal(1, n, 'Ensure add is called');
-    t.end();
-  });
-});
-
-// Currently the same as AddDeprecated as AddDeprecated do not test the expire option.
-test('AddWithoutOption', function(t) {
+test('AddSuccessfulWithoutOption', function(t) {
   var n = 0;
   var dummyServer = new MemJS.Server();
   dummyServer.write = function(requestBuf) {
@@ -357,29 +315,7 @@ test('ReplaceSuccessful', function(t) {
   });
 });
 
-test('ReplaceDeprecated', function(t) {
-  var n = 0;
-  var dummyServer = new MemJS.Server();
-  dummyServer.write = function(requestBuf) {
-    var request = MemJS.Utils.parseMessage(requestBuf);
-    t.equal('hello', request.key.toString());
-    t.equal('world', request.val.toString());
-    t.equal('\0\0\0\0\0\0\4\0', request.extras.toString());
-    n += 1;
-    dummyServer.respond({header: {status: 0, opaque: request.header.opaque}});
-  };
-
-  var client = new MemJS.Client([dummyServer], {expires: 1024});
-  client.replace('hello', 'world', function(err, val) {
-    t.equal(null, err);
-    t.equal(true, val);
-    t.equal(1, n, 'Ensure replace is called');
-    t.end();
-  });
-});
-
-// Currently the same as ReplaceDeprecated as ReplaceDeprecated do not test the expire option.
-test('ReplaceWithoutOption', function(t) {
+test('ReplaceSuccessfulWithoutOption', function(t) {
   var n = 0;
   var dummyServer = new MemJS.Server();
   dummyServer.write = function(requestBuf) {
