@@ -582,7 +582,7 @@ test('DecrementSuccessful', function(t) {
   });
 });
 
-test('DecrementDeprecated', function(t) {
+test('DecrementSuccessfulWithoutOption', function(t) {
   var n = 0;
   var dummyServer = new MemJS.Server();
   dummyServer.write = function(requestBuf) {
