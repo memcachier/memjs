@@ -15,12 +15,16 @@ test('GetSuccessful', function(t) {
   };
 
   var client = new MemJS.Client([dummyServer]);
-  client.get('hello', function(err, val, flags) {
+  var assertor = function(err, val, flags) {
     t.equal('world', val);
     t.equal('flagshere', flags);
     t.equal(null, err);
     t.equal(1, n, 'Ensure get is called');
-    t.end();
+  };
+  client.get('hello', assertor);
+  n = 0;
+  return client.get('hello').then(function(res) {
+    assertor(null, res.value, res.flags);
   });
 });
 
@@ -36,11 +40,16 @@ test('GetNotFound', function(t) {
   };
 
   var client = new MemJS.Client([dummyServer]);
-  client.get('hello', function(val, flags) {
+  var assertor = function(val, flags) {
     t.equal(null, val);
     t.equal(null, flags);
     t.equal(1, n, 'Ensure get is called');
     t.end();
+  };
+  client.get('hello', assertor);
+  n = 0;
+  return client.get('hello').then(function(res) {
+    assertor(null, res.value, res.extras);
   });
 });
 
@@ -56,11 +65,15 @@ test('SetSuccessful', function(t) {
   };
 
   var client = new MemJS.Client([dummyServer]);
-  client.set('hello', 'world', {}, function(err, val) {
+  var assertor = function(err, val) {
     t.equal(true, val);
     t.equal(null, err);
     t.equal(1, n, 'Ensure set is called');
-    t.end();
+  };
+  client.set('hello', 'world', {}, assertor);
+  n = 0;
+  return client.set('hello', 'world', {}).then(function (success){
+    assertor(null, success);
   });
 });
 
@@ -117,11 +130,15 @@ test('SetUnsuccessful', function(t) {
   };
 
   var client = new MemJS.Client([dummyServer]);
-  client.set('hello', 'world', {}, function(err, val) {
+  var assertor = function(err, val) {
     t.equal(null, val);
     t.equal('MemJS SET: ' + errors[3], err.message);
     t.equal(1, n, 'Ensure set is called');
-    t.end();
+  };
+  client.set('hello', 'world', {}, assertor);
+  n = 0;
+  return client.set('hello', 'world', {}).catch(function(err) {
+    assertor(err, null);
   });
 });
 
@@ -245,11 +262,15 @@ test('AddSuccessful', function(t) {
   };
 
   var client = new MemJS.Client([dummyServer], {expires: 1024});
-  client.add('hello', 'world', {}, function(err, val) {
+  var assertor = function(err, val) {
     t.equal(null, err);
     t.equal(true, val);
     t.equal(1, n, 'Ensure add is called');
-    t.end();
+  };
+  client.add('hello', 'world', {}, assertor);
+  n = 0;  
+  return client.add('hello', 'world', {}).then(function(success) {
+    assertor(null, success);
   });
 });
 
@@ -307,11 +328,15 @@ test('ReplaceSuccessful', function(t) {
   };
 
   var client = new MemJS.Client([dummyServer], {expires: 1024});
-  client.replace('hello', 'world', {}, function(err, val) {
+  var assertor = function(err, val) {
     t.equal(null, err);
     t.equal(true, val);
     t.equal(1, n, 'Ensure replace is called');
-    t.end();
+  };
+  client.replace('hello', 'world', {}, assertor);
+  n = 0;
+  return client.replace('hello', 'world', {}).then(function(success){
+    assertor(null, success);
   });
 });
 
@@ -367,11 +392,15 @@ test('DeleteSuccessful', function(t) {
   };
 
   var client = new MemJS.Client([dummyServer]);
-  client.delete('hello', function(err, val) {
+  var assertor = function(err, val) {
     t.equal(null, err);
     t.equal(true, val);
     t.equal(1, n, 'Ensure delete is called');
-    t.end();
+  };
+  client.delete('hello', assertor);
+  n = 0;
+  return client.delete('hello').then(function(success) {
+    assertor(null, success);
   });
 });
 
@@ -407,11 +436,15 @@ test('Flush',  function(t) {
   };
 
   var client = new MemJS.Client([dummyServer, dummyServer]);
-  client.flush(function(err, results) {
+  var assertor = function(err, results) {
     t.equal(null, err);
     t.equal(true, results['example.com:1234']);
     t.equal(2, n, 'Ensure flush is called for each server');
-    t.end();
+  };
+  client.flush(assertor);
+  n = 0;
+  return client.flush().then(function(results) {
+    assertor(null, results);
   });
 });
 
