@@ -2,7 +2,7 @@
   "author": "Amit Levy",
   "name": "memjs",
   "description": "A memcache client for node using the binary protocol and SASL authentication",
-  "version": "1.0.0-rc.1",
+  "version": "1.0.0",
   "homepage": "http://github.com/alevy/memjs",
   "repository": {
     "type": "git",
@@ -12,8 +12,8 @@
     "node": ">=0.10.0"
   },
   "main": "./lib/memjs/memjs",
-  "directories" : {
-    "lib" : "./lib/memjs"
+  "directories": {
+    "lib": "./lib/memjs"
   },
   "scripts": {
     "test": "eslint ./lib/memjs/ ./test/ && tap -R spec ./test/*.js",
@@ -21,9 +21,11 @@
     "bench-timers": "NODE_PATH=lib/memjs/ node bench/timers.js"
   },
   "dependencies": {},
-  "devDependencies": {"eslint":"1.10.3",
-                      "tap": "4.0.*",
-                      "benchmark": "2.0.*",
-                      "microtime": "2.1.*",
-                      "docco": "*"}
+  "devDependencies": {
+    "eslint": "1.10.3",
+    "tap": "4.0.*",
+    "benchmark": "2.0.*",
+    "microtime": "2.1.*",
+    "docco": "*"
+  }
 }
