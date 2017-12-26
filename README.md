@@ -69,6 +69,8 @@ You can start using MemJS immediately from the node console:
     $ var client = memjs.Client.create()
     $ client.get('hello', function(err, val) { console.log(val); })
 
+If callbacks are not specified, the command calls return promises.
+
 ### Settings Values
 
 ``` javascript
