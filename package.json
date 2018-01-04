@@ -22,10 +22,10 @@
   },
   "dependencies": {},
   "devDependencies": {
-    "eslint": "1.10.3",
-    "tap": "4.0.*",
     "benchmark": "2.0.*",
-    "microtime": "2.1.*",
-    "docco": "*"
+    "docco": "^0.8.0",
+    "eslint": "1.10.3",
+    "microtime": "^2.1.7",
+    "tap": "4.0.*"
   }
 }
