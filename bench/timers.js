@@ -10,8 +10,8 @@ var Benchmark = require('benchmark');
 var Microtime = require('microtime');
 
 var suite = new Benchmark.Suite();
- 
-// add tests 
+
+// add tests
 suite.add('Date.now()', function() {
   // system time, not-monotonic, ms
   Date.now();
@@ -34,13 +34,12 @@ suite.add('Date.now()', function() {
   var time = process.hrtime();
   return (time[0] * 1000) + Math.floor(time[1] / 1000000);
 })
-// add listeners 
+// add listeners
 .on('cycle', function(event) {
   console.log(String(event.target));
 })
 .on('complete', function() {
   console.log('Fastest is ' + this.filter('fastest').map('name'));
 })
-// run async 
+// run async
 .run({ 'async': true });
-

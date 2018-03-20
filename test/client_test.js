@@ -268,7 +268,7 @@ test('AddSuccessful', function(t) {
     t.equal(1, n, 'Ensure add is called');
   };
   client.add('hello', 'world', {}, assertor);
-  n = 0;  
+  n = 0;
   return client.add('hello', 'world', {}).then(function(success) {
     assertor(null, success);
   });

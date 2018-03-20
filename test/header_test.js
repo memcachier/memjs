@@ -48,4 +48,3 @@ test('DumpHeaderNoCas', function(t) {
   t.equal(header.toBuffer(responseHeader).toString(), expected.toString());
   t.end();
 });
-

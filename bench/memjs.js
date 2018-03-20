@@ -96,4 +96,3 @@ x = (function() {
     suite.run({ 'async': true });
   });
 }());
-
