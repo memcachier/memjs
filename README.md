@@ -79,7 +79,7 @@ client.set('hello', 'world', {expires:600}, function(err, val) {
 });
 ```
 
-The `set(key, val, callback, expiration)` function accepts the following parameters.
+The `set(key, val, options, callback)` function accepts the following parameters.
 
 * `key`: key to set
 * `val`: value to set
