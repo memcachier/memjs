@@ -191,10 +191,8 @@ test('SetErrorConcurrent', function(t) {
   var callbn2 = 0;
   var dummyServer = new MemJS.Server();
   dummyServer.write = function(/* requestBuf */) {
-    process.nextTick(function() {
-      n += 1;
-      dummyServer.error({message: 'This is an expected error.'});
-    });
+    n += 1;
+    dummyServer.error({message: 'This is an expected error.'});
   };
 
   var client = new MemJS.Client([dummyServer], {retries: 2});
@@ -217,15 +215,10 @@ test('SetErrorConcurrent', function(t) {
     return function() {
       called += 1;
       if (called < 2) return;
-      t.equal(2, n, 'Ensure error is sent');
       t.equal(1, callbn1, 'Ensure callback 1 is called once');
       t.equal(1, callbn2, 'Ensure callback 2 is called once');
-      process.nextTick(function() {
-        t.equal(1, callbn1, 'Ensure callback 1 is called once');
-        t.equal(1, callbn2, 'Ensure callback 2 is called once');
-        t.equal(4, n, 'Ensure error sent again');
-        t.end();
-      });
+      t.equal(4, n, 'Ensure error sent twice for each set call');
+      t.end();
     };
   })();
 });
