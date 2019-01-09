@@ -1,5 +1,6 @@
 var test = require('tap').test;
 var utils = require('../lib/memjs/utils');
+var memjsBuffer = require('../lib/memjs/buffer');
 
 test('MergePresereParameter', function(t) {
   var result = utils.merge({}, { retries: 2 });
@@ -25,7 +26,7 @@ test('MergeDontPresereParameterWhenUndefinedOrNull', function(t) {
 test('MakeAmountInitialAndExpiration', function(t) {
   var extras, buf, fixture;
   extras = utils.makeAmountInitialAndExpiration(1, 1, 1);
-  fixture = new Buffer('0000000000000001000000000000000100000001', 'hex');
+  fixture = memjsBuffer.from('0000000000000001000000000000000100000001', 'hex');
   t.equal(20, extras.length);
   t.equal(fixture.toString('hex'), extras.toString('hex'));
   buf = new Buffer(extras);
@@ -33,7 +34,7 @@ test('MakeAmountInitialAndExpiration', function(t) {
   t.equal(fixture.toString('hex'), buf.toString('hex'));
 
   extras = utils.makeAmountInitialAndExpiration(255, 1, 1);
-  fixture = new Buffer('00000000000000ff000000000000000100000001', 'hex');
+  fixture = memjsBuffer.from('00000000000000ff000000000000000100000001', 'hex');
   t.equal(20, extras.length);
   t.equal(fixture.toString('hex'), extras.toString('hex'));
   buf = new Buffer(extras);
