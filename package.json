@@ -29,7 +29,7 @@
   },
   "dependencies": {},
   "devDependencies": {
-    "benchmark": "2.0.*",
+    "benchmark": "^2.1.4",
     "docco": "^0.8.0",
     "eslint": "1.10.3",
     "microtime": "^2.1.7",
