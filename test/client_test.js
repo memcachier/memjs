@@ -489,7 +489,7 @@ test('IncrementSuccessful', function(t) {
     t.equal(expectedExtras[n], request.extras.toString());
     n += 1;
     process.nextTick(function() {
-      var value = new Buffer(8);
+      var value = Buffer.alloc(8);
       value.writeUInt32BE(request.header.opcode + 1, 4);
       value.writeUInt32BE(0, 0);
       dummyServer.respond({header: {status: 0, opaque: request.header.opaque}, val: value});
@@ -537,7 +537,7 @@ test('DecrementSuccessful', function(t) {
                  request.extras.toString());
     n += 1;
     process.nextTick(function() {
-      var value = new Buffer(8);
+      var value = Buffer.alloc(8);
       value.writeUInt32BE(request.header.opcode, 4);
       value.writeUInt32BE(0, 0);
       dummyServer.respond({header: {status: 0, opaque: request.header.opaque}, val: value});
@@ -566,7 +566,7 @@ test('DecrementSuccessfulWithoutOption', function(t) {
                  request.extras.toString());
     n += 1;
     process.nextTick(function() {
-      var value = new Buffer(8);
+      var value = Buffer.alloc(8);
       value.writeUInt32BE(request.header.opcode, 4);
       value.writeUInt32BE(0, 0);
       dummyServer.respond({header: {status: 0, opaque: request.header.opaque}, val: value});

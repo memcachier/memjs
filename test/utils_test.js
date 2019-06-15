@@ -25,18 +25,18 @@ test('MergeDontPresereParameterWhenUndefinedOrNull', function(t) {
 test('MakeAmountInitialAndExpiration', function(t) {
   var extras, buf, fixture;
   extras = utils.makeAmountInitialAndExpiration(1, 1, 1);
-  fixture = new Buffer('0000000000000001000000000000000100000001', 'hex');
+  fixture = Buffer.from('0000000000000001000000000000000100000001', 'hex');
   t.equal(20, extras.length);
   t.equal(fixture.toString('hex'), extras.toString('hex'));
-  buf = new Buffer(extras);
+  buf = Buffer.from(extras);
   t.equal(20, buf.length);
   t.equal(fixture.toString('hex'), buf.toString('hex'));
 
   extras = utils.makeAmountInitialAndExpiration(255, 1, 1);
-  fixture = new Buffer('00000000000000ff000000000000000100000001', 'hex');
+  fixture = Buffer.from('00000000000000ff000000000000000100000001', 'hex');
   t.equal(20, extras.length);
   t.equal(fixture.toString('hex'), extras.toString('hex'));
-  buf = new Buffer(extras);
+  buf = Buffer.from(extras);
   t.equal(20, buf.length);
   t.equal(fixture.toString('hex'), buf.toString('hex'));
   t.end();
