@@ -44,7 +44,6 @@ test('GetNotFound', function(t) {
     t.equal(null, val);
     t.equal(null, flags);
     t.equal(1, n, 'Ensure get is called');
-    t.end();
   };
   client.get('hello', assertor);
   n = 0;

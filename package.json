@@ -27,12 +27,14 @@
     "bench": "NODE_PATH=lib/memjs/ node bench/memjs.js",
     "bench-timers": "NODE_PATH=lib/memjs/ node bench/timers.js"
   },
-  "dependencies": {},
+  "dependencies": {
+    "promise": "^8.0.3"
+  },
   "devDependencies": {
     "benchmark": "^2.1.4",
     "docco": "^0.8.0",
-    "eslint": "1.10.3",
-    "microtime": "^2.1.7",
-    "tap": "4.0.*"
+    "eslint": "^6.0.1",
+    "microtime": "^3.0.0",
+    "tap": "^14.3.0"
   }
 }
