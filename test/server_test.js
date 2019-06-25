@@ -51,12 +51,12 @@ test('Authenticate', function(t) {
 test('SetSaslCredentials', function(t) {
   var server;
   server = new MemJS.Server('test.example.com', 11211, undefined,
-      undefined, {username: 'user1', password: 'password'});
+    undefined, {username: 'user1', password: 'password'});
   t.equal('user1', server.username);
   t.equal('password', server.password);
 
   server = new MemJS.Server('test.example.com', 11211, 'user2',
-      'password2', {username: 'user1', password: 'password'});
+    'password2', {username: 'user1', password: 'password'});
   t.equal('user2', server.username);
   t.equal('password2', server.password);
 

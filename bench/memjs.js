@@ -17,7 +17,7 @@ function makeString(n) {
 var x = (function() {
   var suite = new b.Suite();
 
-  var headerBuf = new Buffer([0x81, 1, 7, 0, 4, 0, 0, 1, 0, 0, 0, 9, 0, 0, 0, 0, 0x0a, 0, 0, 0, 0, 0, 0, 0]);
+  var headerBuf = Buffer.from([0x81, 1, 7, 0, 4, 0, 0, 1, 0, 0, 0, 9, 0, 0, 0, 0, 0x0a, 0, 0, 0, 0, 0, 0, 0]);
   var parsedHeader = header.fromBuffer(headerBuf);
 
   suite.add('Header#fromBuffer', function() {
@@ -45,9 +45,9 @@ x = (function() {
     status: 1,
     totalBodyLength: 1024 * 10 + 15,
     opaque: 0,
-    cas: new Buffer([0x0a, 0, 0, 0, 0, 0, 0, 0])
+    cas: Buffer.from([0x0a, 0, 0, 0, 0, 0, 0, 0])
   };
-  var buf = new Buffer(24 + 15 + 1024 * 10);
+  var buf = Buffer.alloc(24 + 15 + 1024 * 10);
   header.toBuffer(responseHeader).copy(buf);
   buf.write(makeString(55));
 
