@@ -727,4 +727,60 @@ test('Failover', function(t) {
   });
 
 });
+
+test('SerializeShouldBeCalled', function(t) {
+  var n = 0;
+  var dummyServer = new MemJS.Server();
+  dummyServer.write = function(requestBuf) {
+    var request = MemJS.Utils.parseMessage(requestBuf);
+    t.equal('hello', request.key.toString());
+    t.equal('world', request.val.toString());
+    dummyServer.respond({header: {status: 0, opaque: request.header.opaque}});
+  };
+
+  var client = new MemJS.Client([dummyServer]);
+  var assertor = function(err, val) {
+    t.equal(true, val);
+    t.equal(null, err);
+    t.equal(1, n, 'Ensure serialize is called');
+    t.end();
+  };
+
+  var serialize = client.serialize;
+  client.serialize = function(){
+    n += 1;
+    return serialize.apply(client, arguments);
+  };
+  client.set('hello', 'world', {}, assertor);
+});
+
+test('DeSerializeShouldBeCalled', function(t) {
+  var n = 0;
+  var dummyServer = new MemJS.Server();
+  dummyServer.write = function(requestBuf) {
+    var request = MemJS.Utils.parseMessage(requestBuf);
+    t.equal('hello', request.key.toString());
+    dummyServer.respond(
+      {header: {status: 0, opaque: request.header.opaque},
+        val: 'world', extras: 'flagshere'});
+  };
+
+  var client = new MemJS.Client([dummyServer]);
+  var deSerialize = client.deSerialize;
+  client.deSerialize = function(){
+    n += 1;
+    return deSerialize.apply(client, arguments);
+  };
+
+  var assertor = function(err, val, flags) {
+    t.equal('world', val);
+    t.equal('flagshere', flags);
+    t.equal(null, err);
+    t.equal(1, n, 'Ensure deSerialize is called');
+    t.end();
+  };
+
+  client.get('hello', assertor);
+});
+
 return;
