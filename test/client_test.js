@@ -754,7 +754,7 @@ test('SerializeShouldBeCalled', function(t) {
   client.set('hello', 'world', {}, assertor);
 });
 
-test('DeSerializeShouldBeCalled', function(t) {
+test('DeserializeShouldBeCalled', function(t) {
   var n = 0;
   var dummyServer = new MemJS.Server();
   dummyServer.write = function(requestBuf) {
@@ -766,10 +766,10 @@ test('DeSerializeShouldBeCalled', function(t) {
   };
 
   var client = new MemJS.Client([dummyServer]);
-  var deSerialize = client.deSerialize;
-  client.deSerialize = function(){
+  var deserialize = client.deserialize;
+  client.deserialize = function(){
     n += 1;
-    return deSerialize.apply(client, arguments);
+    return deserialize.apply(client, arguments);
   };
 
   var assertor = function(err, val, flags) {
