@@ -53,6 +53,45 @@ test('GetNotFound', function(t) {
   });
 });
 
+test('GetSerializer', function(t) {
+  var n = 0;
+  var dn = 0;
+  var dummyServer = new MemJS.Server();
+  dummyServer.write = function(requestBuf) {
+    var request = MemJS.Utils.parseMessage(requestBuf);
+    t.equal('hello', request.key.toString());
+    n += 1;
+    dummyServer.respond(
+      {header: {status: 0, opaque: request.header.opaque},
+        val: 'world', extras: 'flagshere'});
+  };
+
+  var client = new MemJS.Client([dummyServer], {
+    serializer: {
+      serialize: function(opcode, value, extras){
+        return { value: value, extras: extras };
+      },
+      deserialize: function (opcode, value, extras) {
+        dn += 1;
+        return { value: 'deserialized', extras: extras };
+      }
+    }
+  });
+  var assertor = function(err, val, flags) {
+    t.equal('deserialized', val);
+    t.equal('flagshere', flags);
+    t.equal(null, err);
+    t.equal(1, n, 'Ensure get is called');
+    t.equal(1, dn, 'Ensure deserialization is called once');
+  };
+  client.get('hello', assertor);
+  n = 0;
+  dn = 0;
+  return client.get('hello').then(function(res) {
+    assertor(null, res.value, res.flags);
+  });
+});
+
 test('SetSuccessful', function(t) {
   var n = 0;
   var dummyServer = new MemJS.Server();
@@ -242,6 +281,43 @@ test('SetUnicode', function(t) {
   });
 });
 
+test('SetSerialize', function(t) {
+  var n = 0;
+  var sn = 0;
+  var dummyServer = new MemJS.Server();
+  dummyServer.write = function(requestBuf) {
+    var request = MemJS.Utils.parseMessage(requestBuf);
+    t.equal('hello', request.key.toString());
+    t.equal('serialized', request.val.toString());
+    n += 1;
+    dummyServer.respond({header: {status: 3, opaque: request.header.opaque}});
+  };
+
+  var client = new MemJS.Client([dummyServer], {
+    serializer: {
+      serialize: function(opcode, value, extras){
+        sn += 1;
+        return { value: 'serialized', extras: extras };
+      },
+      deserialize: function (opcode, value, extras) {
+        return { value: value, extras: extras };
+      }
+    }
+  });
+  var assertor = function(err, val) {
+    t.equal(null, val);
+    t.equal('MemJS SET: ' + errors[3], err.message);
+    t.equal(1, n, 'Ensure set is called');
+    t.equal(1, sn, 'Ensure serialization is called once');
+  };
+  client.set('hello', 'world', {}, assertor);
+  n = 0;
+  sn = 0;
+  return client.set('hello', 'world', {}).catch(function(err) {
+    assertor(err, null);
+  });
+});
+
 test('AddSuccessful', function(t) {
   var n = 0;
   var dummyServer = new MemJS.Server();
@@ -305,6 +381,46 @@ test('AddKeyExists', function(t) {
     t.equal(false, val);
     t.equal(1, n, 'Ensure add is called');
     t.end();
+  });
+});
+
+test('AddSerializer', function(t) {
+  var n = 0;
+  var sn = 0;
+  var dummyServer = new MemJS.Server();
+  dummyServer.write = function(requestBuf) {
+    var request = MemJS.Utils.parseMessage(requestBuf);
+    t.equal('hello', request.key.toString());
+    t.equal('serialized', request.val.toString());
+    t.equal('0000000100000400', request.extras.toString('hex'));
+    n += 1;
+    dummyServer.respond({header: {status: 0, opaque: request.header.opaque}});
+  };
+
+  var client = new MemJS.Client([dummyServer], {
+    expires: 1024,
+    serializer: {
+      serialize: function(opcode, value, extras){
+        sn += 1;
+        extras.writeUInt32BE(1, 0);
+        return { value: 'serialized', extras: extras };
+      },
+      deserialize: function (opcode, value, extras) {
+        return { value: value, extras: extras };
+      }
+    }
+  });
+  var assertor = function(err, val) {
+    t.equal(null, err);
+    t.equal(true, val);
+    t.equal(1, n, 'Ensure add is called');
+    t.equal(1, sn, 'Ensure serialization is called once');
+  };
+  client.add('hello', 'world', {}, assertor);
+  n = 0;
+  sn = 0;
+  return client.add('hello', 'world', {}).then(function(success) {
+    assertor(null, success);
   });
 });
 
