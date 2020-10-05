@@ -843,4 +843,30 @@ test('Failover', function(t) {
   });
 
 });
+
+test('Very Large Client Seq', function(t) {
+  var n = 0;
+  var dummyServer = new MemJS.Server();
+  dummyServer.write = function(requestBuf) {
+    var request = MemJS.Utils.parseMessage(requestBuf);
+    t.equal('hello', request.key.toString());
+    t.equal('world', request.val.toString());
+    t.equal('0000000000000400', request.extras.toString('hex'));
+    n += 1;
+    dummyServer.respond({header: {status: 0, opaque: request.header.opaque}});
+  };
+
+  var client = new MemJS.Client([dummyServer], {expires: 1024});
+  client.seq = Math.pow(2,33);
+  var assertor = function(err, val) {
+    t.equal(null, err);
+    t.equal(true, val);
+    t.equal(1, n, 'Ensure add is called');
+  };
+  client.add('hello', 'world', {}, assertor);
+  n = 0;
+  return client.add('hello', 'world', {}).then(function(success) {
+    assertor(null, success);
+  });
+});
 return;

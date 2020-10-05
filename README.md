@@ -109,7 +109,7 @@ Note that values are always returned as `Buffer`s, regardless of whether a
 
 ## Contributing
 
-The best way to contribut to the project is by reporting bugs and testing unpublished
+The best way to contribute to the project is by reporting bugs and testing unpublished
 versions. If you have a staging or development app, the easiest way to do this is
 using the git repository as your `memjs` package dependency---in `package.json`:
 
