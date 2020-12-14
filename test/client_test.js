@@ -136,6 +136,25 @@ test('SetSuccessfulWithoutOption', function(t) {
   });
 });
 
+test('SetPromiseWithoutOption', function(t) {
+  var n = 0;
+  var dummyServer = new MemJS.Server();
+  dummyServer.write = function(requestBuf) {
+    var request = MemJS.Utils.parseMessage(requestBuf);
+    t.equal('hello', request.key.toString());
+    t.equal('world', request.val.toString());
+    n += 1;
+    dummyServer.respond({header: {status: 0, opaque: request.header.opaque}});
+  };
+
+  var client = new MemJS.Client([dummyServer]);
+  return client.set('hello', 'world').then(function(val) {
+    t.equal(true, val);
+    t.equal(1, n, 'Ensure set is called');
+    t.end();
+  });
+});
+
 test('SetWithExpiration', function(t) {
   var n = 0;
   var dummyServer = new MemJS.Server();
