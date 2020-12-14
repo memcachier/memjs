@@ -17,6 +17,9 @@
             "always"
         ]
     },
+    "globals": {
+        "Promise": "readonly"
+    },
     "env": {
         "node": true,
         "browser": true
