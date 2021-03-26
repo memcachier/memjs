@@ -23,16 +23,15 @@
     "lib": "./lib/memjs"
   },
   "scripts": {
-    "test": "eslint ./lib/memjs/ ./test/ && tap -R spec ./test/*.js",
+    "test": "eslint ./lib/memjs/ ./test/ && tap  --no-coverage -R spec ./test/*.js",
     "bench": "NODE_PATH=lib/memjs/ node bench/memjs.js",
     "bench-timers": "NODE_PATH=lib/memjs/ node bench/timers.js"
   },
-  "dependencies": {},
   "devDependencies": {
     "benchmark": "^2.1.4",
     "docco": "^0.8.0",
     "eslint": "4.18.2",
     "microtime": "^3.0.0",
-    "tap": "4.0.*"
+    "tap": "14.0.*"
   }
 }
