@@ -161,17 +161,17 @@ export class Client {
    *
    *     callback(err, values, flags)
    *
-   * _values_ is a map of key->string
-   * _flags_ is a `string`.
+   * @param keys
+   * @param callback
    */
   getMulti<Keys extends string>(
     keys: Keys[]
-  ): Promise<{ values: { [K in Keys]?: string | null }; flags: Buffer | null }>;
+  ): Promise<{ values: { [K in Keys]?: Buffer | null }; flags: Buffer | null }>;
   getMulti<Keys extends string>(
     keys: Keys[],
     callback: (
       err: Error | null,
-      values: { [K in Keys]: string | null } | null,
+      values: { [K in Keys]: Buffer | null } | null,
       flags: Buffer | null
     ) => void
   ): void;
