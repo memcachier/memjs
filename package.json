@@ -30,8 +30,10 @@
   "devDependencies": {
     "benchmark": "^2.1.4",
     "docco": "^0.8.0",
-    "eslint": "4.18.2",
     "microtime": "^3.0.0",
     "tap": "14.0.*"
+  },
+  "dependencies": {
+    "eslint": "^7.23.0"
   }
 }
