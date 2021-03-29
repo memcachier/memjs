@@ -102,7 +102,7 @@ test('GetSerializer', function(t) {
   });
 });
 
-tap.only('GetMultiSuccessful_SingleBackend', function(t) {
+test('GetMultiSuccessful_SingleBackend', function(t) {
   var n = 0;
   var dummyServer = new MemJS.Server('dummyServer');
   dummyServer.write = function(requestBuf) {
@@ -1078,30 +1078,29 @@ test('TouchKeyDNE', function(t) {
   });
 });
 
-// test('Failover', function(t) {
-//   var n1 = 0;
-//   var n2 = 0;
-//   var dummyServer1 = new MemJS.Server('dummyServer');
-//   dummyServer1.write = function(/* requestBuf*/) {
-//     n1 += 1;
-//     dummyServer1.error(new Error('connection failure'));
-//   };
-//   var dummyServer2 = new MemJS.Server('dummyServer');
-//   dummyServer2.write = function(requestBuf) {
-//     n2 += 1;
-//     var request = MemJS.Utils.parseMessage(requestBuf);
-//     dummyServer2.respond({header: {status: 0, opaque: request.header.opaque}});
-//   };
+test('Failover', function(t) {
+  var n1 = 0;
+  var n2 = 0;
+  var dummyServer1 = new MemJS.Server('dummyServer1');
+  dummyServer1.write = function(/* requestBuf*/) {
+    n1 += 1;
+    dummyServer1.error(new Error('connection failure'));
+  };
+  var dummyServer2 = new MemJS.Server('dummyServer2');
+  dummyServer2.write = function(requestBuf) {
+    n2 += 1;
+    var request = MemJS.Utils.parseMessage(requestBuf);
+    dummyServer2.respond({header: {status: 0, opaque: request.header.opaque}});
+  };
 
-//   var client = new MemJS.Client([dummyServer1, dummyServer2], {failover: true});
-//   client.get('\0', function(err/*, val */){
-//     t.equal(null, err);
-//     t.equal(2, n1);
-//     t.equal(1, n2);
-//     t.end();
-//   });
-
-// });
+  var client = new MemJS.Client([dummyServer1, dummyServer2], {failover: true});
+  client.get('\0', function(err/*, val */){
+    t.equal(null, err);
+    t.equal(2, n1);
+    t.equal(1, n2);
+    t.end();
+  });
+});
 
 test('Very Large Client Seq', function(t) {
   var n = 0;
