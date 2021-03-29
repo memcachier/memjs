@@ -159,7 +159,7 @@ export class Client {
    *
    * The callback signature is:
    *
-   *     callback(err, values, flags)
+   *     callback(err, value, flags)
    *
    * @param keys
    * @param callback
@@ -528,4 +528,45 @@ export class Client {
     callback?: (err: Error | null, ...args: any[]) => void,
     retries?: number
   ): void;
+
+   /**
+   * VERSION
+   *
+   * Retrieves the server version from the "first" server in the backend pool
+   *
+   * The callback signature is:
+   *
+   *     callback(err, value, flags)
+   *
+   * @param keys
+   * @param callback
+   */
+    version(): Promise<{ value: string; flags: Buffer | null }>;
+    version(callback: (
+      err: Error | null,
+      value: { [K in Keys]: Buffer | null } | null,
+      flags: Buffer | null
+    ) => void): void
+
+
+   /**
+   * VERSION-ALL
+   *
+   * Retrieves the server version from all the servers
+   * in the backend pool, errors if any one of them has an
+   * error
+   *
+   * The callback signature is:
+   *
+   *     callback(err, value, flags)
+   *
+   * @param keys
+   * @param callback
+   */
+    versionAll(): Promise<{ values: Record<string, string>; flags: Buffer | null }>;
+    versionAll(callback: (
+      err: Error | null,
+      values: Record<string, string>,
+      flags: Buffer | null
+    ) => void): void
 }

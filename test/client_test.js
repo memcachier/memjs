@@ -402,7 +402,7 @@ test('SetWithExpiration', function(t) {
     var request = MemJS.Utils.parseMessage(requestBuf);
     t.equal('hello', request.key.toString());
     t.equal('world', request.val.toString());
-    t.equal('\0\0\0\0\0\0\4\0', request.extras.toString());
+    t.equal('\0\0\0\0\0\0\x04\0', request.extras.toString());
     n += 1;
     dummyServer.respond({header: {status: 0, opaque: request.header.opaque}});
   };
@@ -690,7 +690,7 @@ test('ReplaceSuccessful', function(t) {
     var request = MemJS.Utils.parseMessage(requestBuf);
     t.equal('hello', request.key.toString());
     t.equal('world', request.val.toString());
-    t.equal('\0\0\0\0\0\0\4\0', request.extras.toString());
+    t.equal('\0\0\0\0\0\0\x04\0', request.extras.toString());
     n += 1;
     dummyServer.respond({header: {status: 0, opaque: request.header.opaque}});
   };
@@ -715,7 +715,7 @@ test('ReplaceSuccessfulWithoutOption', function(t) {
     var request = MemJS.Utils.parseMessage(requestBuf);
     t.equal('hello', request.key.toString());
     t.equal('world', request.val.toString());
-    t.equal('\0\0\0\0\0\0\4\0', request.extras.toString());
+    t.equal('\0\0\0\0\0\0\x04\0', request.extras.toString());
     n += 1;
     dummyServer.respond({header: {status: 0, opaque: request.header.opaque}});
   };
@@ -852,8 +852,8 @@ test('IncrementSuccessful', function(t) {
   var dummyServer = new MemJS.Server('dummyServer');
 
   var expectedExtras = [
-    '\0\0\0\0\0\0\0\5\0\0\0\0\0\0\0\0\0\0\0\0',
-    '\0\0\0\0\0\0\0\5\0\0\0\0\0\0\0\3\0\0\0\0'
+    '\0\0\0\0\0\0\0\x05\0\0\0\0\0\0\0\0\0\0\0\0',
+    '\0\0\0\0\0\0\0\x05\0\0\0\0\0\0\0\x03\0\0\0\0'
   ];
 
   dummyServer.write = function(requestBuf) {
@@ -908,7 +908,7 @@ test('DecrementSuccessful', function(t) {
     t.equal(6, request.header.opcode);
     t.equal('number-decrement-test', request.key.toString());
     t.equal('', request.val.toString());
-    t.equal('\0\0\0\0\0\0\0\5\0\0\0\0\0\0\0\0\0\0\0\0', request.extras.toString());
+    t.equal('\0\0\0\0\0\0\0\x05\0\0\0\0\0\0\0\0\0\0\0\0', request.extras.toString());
     n += 1;
     process.nextTick(function() {
       var value = Buffer.alloc(8);
@@ -936,7 +936,7 @@ test('DecrementSuccessfulWithoutOption', function(t) {
     t.equal(6, request.header.opcode);
     t.equal('number-decrement-test', request.key.toString());
     t.equal('', request.val.toString());
-    t.equal('\0\0\0\0\0\0\0\5\0\0\0\0\0\0\0\0\0\0\0\0', request.extras.toString());
+    t.equal('\0\0\0\0\0\0\0\x05\0\0\0\0\0\0\0\0\0\0\0\0', request.extras.toString());
     n += 1;
     process.nextTick(function() {
       var value = Buffer.alloc(8);
@@ -1043,7 +1043,7 @@ test('TouchSuccessful', function(t) {
     var request = MemJS.Utils.parseMessage(requestBuf);
     t.equal('hello', request.key.toString());
     t.equal('', request.val.toString());
-    t.equal('\0\0\4\0', request.extras.toString());
+    t.equal('\0\0\x04\0', request.extras.toString());
     n += 1;
     dummyServer.respond({header: {status: 0, opaque: request.header.opaque}});
   };
@@ -1064,7 +1064,7 @@ test('TouchKeyDNE', function(t) {
     var request = MemJS.Utils.parseMessage(requestBuf);
     t.equal('hello', request.key.toString());
     t.equal('', request.val.toString());
-    t.equal('\0\0\4\0', request.extras.toString());
+    t.equal('\0\0\x04\0', request.extras.toString());
     n += 1;
     dummyServer.respond({header: {status: 1, opaque: request.header.opaque}});
   };
@@ -1129,12 +1129,26 @@ test('Very Large Client Seq', function(t) {
   });
 });
 
-
-tap.only('VersionSuccessful', function(t) {
-  var dummyServer = new MemJS.Server('dummyServer');
+const makeDummyVersionServer = (t, serverKey, version) => {
+  var dummyServer = new MemJS.Server(serverKey);
   dummyServer.write = function(requestBuf) {
     var request = MemJS.Utils.parseMessage(requestBuf);
     t.deepEqual(Buffer.from(''), request.key);
+    dummyServer.respond(
+      {header: {status: 0, opaque: request.header.opaque},
+        val: version, extras: 'flagshere'});
+  };
+  return dummyServer;
+};
+
+test('VersionSuccessful', function(t) {
+  var n = 0;
+
+  var dummyServer = makeDummyVersionServer(t, 'dummyServer', '1.3.1');
+  dummyServer.write = function(requestBuf) {
+    var request = MemJS.Utils.parseMessage(requestBuf);
+    t.deepEqual(Buffer.from(''), request.key);
+    n += 1;
     dummyServer.respond(
       {header: {status: 0, opaque: request.header.opaque},
         val: '1.3.1', extras: 'flagshere'});
@@ -1145,14 +1159,16 @@ tap.only('VersionSuccessful', function(t) {
     t.equal('1.3.1', val);
     t.equal('flagshere', flags);
     t.equal(null, err);
+    t.equal(n, 1, 'Ensure version is called');
   };
 
   client.version(assertor);
+  n = 0;
+
   return client.version().then(function(res) {
     assertor(null, res.value, res.flags);
   });
 });
-
 
 tap.only('VersionError', function(t) {
   var dummyServer = new MemJS.Server('dummyServer');
@@ -1173,4 +1189,46 @@ tap.only('VersionError', function(t) {
   });
 });
 
-return;
+test('VersionAllSuccessful',  function(t) {
+  const dummyServer1 = makeDummyVersionServer(t, 'dummyServer1', '1.0.0');
+  const dummyServer2 = makeDummyVersionServer(t, 'dummyServer2', '2.0.0');
+  const dummyServer3 = makeDummyVersionServer(t, 'dummyServer3', '3.0.0');
+
+  var client = new MemJS.Client([dummyServer1, dummyServer2, dummyServer3]);
+  var assertor = function(err, val) {
+    t.deepEqual({
+      'dummyServer1:undefined': '1.0.0',
+      'dummyServer2:undefined': '2.0.0',
+      'dummyServer3:undefined': '3.0.0'
+    }, val);
+    t.equal(null, err);
+  };
+
+  client.versionAll(assertor);
+
+  return client.versionAll().then(function(res) {
+    assertor(null, res.values, res.flags);
+  });
+});
+
+
+tap.only('VersionAllSomeFailed',  function(t) {
+  const dummyServer1 = makeDummyVersionServer(t, 'dummyServer1', '1.0.0');
+  const dummyServer2 = makeDummyVersionServer(t, 'dummyServer2', '2.0.0');
+  dummyServer2.write = function() {
+    dummyServer2.error({message: 'This is an expected error.'});
+  };
+  const dummyServer3 = makeDummyVersionServer(t, 'dummyServer3', '3.0.0');
+
+  var client = new MemJS.Client([dummyServer1, dummyServer2, dummyServer3]);
+  var assertor = function(err) {
+    t.notEqual(null, err);
+    t.equal('This is an expected error.', err.message);
+  };
+
+  client.versionAll(assertor);
+
+  return client.versionAll().catch(function(err) {
+    assertor(err);
+  });
+});
