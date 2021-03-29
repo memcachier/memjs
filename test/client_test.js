@@ -1127,6 +1127,7 @@ test('Very Large Client Seq', function(t) {
   return client.add('hello', 'world', {}).then(function(success) {
     assertor(null, success);
   });
+<<<<<<< HEAD
 });
 
 const makeDummyVersionServer = (t, serverKey, version) => {
@@ -1231,4 +1232,6 @@ tap.only('VersionAllSomeFailed',  function(t) {
   return client.versionAll().catch(function(err) {
     assertor(err);
   });
+=======
+>>>>>>> update eslint, modernize some JS, bring back failover logic
 });
