@@ -1128,4 +1128,49 @@ test('Very Large Client Seq', function(t) {
     assertor(null, success);
   });
 });
+
+
+tap.only('VersionSuccessful', function(t) {
+  var dummyServer = new MemJS.Server('dummyServer');
+  dummyServer.write = function(requestBuf) {
+    var request = MemJS.Utils.parseMessage(requestBuf);
+    t.deepEqual(Buffer.from(''), request.key);
+    dummyServer.respond(
+      {header: {status: 0, opaque: request.header.opaque},
+        val: '1.3.1', extras: 'flagshere'});
+  };
+
+  var client = new MemJS.Client([dummyServer]);
+  var assertor = function(err, val, flags) {
+    t.equal('1.3.1', val);
+    t.equal('flagshere', flags);
+    t.equal(null, err);
+  };
+
+  client.version(assertor);
+  return client.version().then(function(res) {
+    assertor(null, res.value, res.flags);
+  });
+});
+
+
+tap.only('VersionError', function(t) {
+  var dummyServer = new MemJS.Server('dummyServer');
+  dummyServer.write = function() {
+    dummyServer.error({message: 'This is an expected error.'});
+  };
+
+  var client = new MemJS.Client([dummyServer]);
+  var assertor = function(err) {
+    t.notEqual(null, err);
+    t.equal('This is an expected error.', err.message);
+  };
+
+  client.version(assertor);
+  return client.version().catch(function(err) {
+    assertor(err);
+    return true;
+  });
+});
+
 return;
