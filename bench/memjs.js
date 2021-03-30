@@ -1,10 +1,10 @@
-var memjs = require("memjs");
+var memjs = require('memjs');
 var header = require('header');
-var b = require("benchmark");
+var b = require('benchmark');
 
 function makeString(n) {
-  var possible = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
-  var text = "";
+  var possible = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+  var text = '';
   var i;
 
   for(i=0; i < n; i++ ) {
@@ -23,15 +23,15 @@ var x = (function() {
   suite.add('Header#fromBuffer', function() {
     header.fromBuffer(headerBuf);
   })
-  .add('Header#toBuffer', function() {
-    header.toBuffer(parsedHeader);
-  })
+    .add('Header#toBuffer', function() {
+      header.toBuffer(parsedHeader);
+    })
   // add listeners
-  .on('cycle', function(event) {
-    console.log(String(event.target));
-  })
+    .on('cycle', function(event) {
+      console.log(String(event.target));
+    })
   // run async
-  .run({ 'async': true });
+    .run({ 'async': true });
 }());
 
 x = (function() {
@@ -66,15 +66,15 @@ x = (function() {
   suite.add('Server#respond', function() {
     server.respond('helloworldthisisatesttohowmuchyouareaversetocopyingoverthestargatecommisionandromanticizingaboutmylifelongpassionforlearningandyieldingtoyourdesires');
   })
-  .add('Server#responseHandler', function() {
-    server.responseHandler(buf);
-  })
+    .add('Server#responseHandler', function() {
+      server.responseHandler(buf);
+    })
   // add listeners
-  .on('cycle', function(event) {
-    console.log(String(event.target));
-  })
+    .on('cycle', function(event) {
+      console.log(String(event.target));
+    })
   // run async
-  .run({ 'async': true });
+    .run({ 'async': true });
 }());
 
 x = (function() {
@@ -83,15 +83,15 @@ x = (function() {
 
   suite.cycles = 0;
   suite.add('Client#get', function() {
-    client.get("hello", function(/* err, val */) {
+    client.get('hello', function(/* err, val */) {
       suite.cycles++;
     });
   })
   // add listeners
-  .on('cycle', function(event) {
-    console.log(String(event.target) + "     " + suite.cycles);
-  });
-  client.set("hello", makeString(10240), function(/* err, val */) {
+    .on('cycle', function(event) {
+      console.log(String(event.target) + '     ' + suite.cycles);
+    });
+  client.set('hello', makeString(10240), function(/* err, val */) {
     // run async
     suite.run({ 'async': true });
   });
