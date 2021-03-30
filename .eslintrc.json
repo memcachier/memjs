@@ -30,10 +30,5 @@
         "ecmaVersion": 6,
         "sourceType": "module"
     },
-    "parserOptions": {
-        "es6": true,
-        "ecmaVersion": 6,
-        "sourceType": "module"
-    },
     "extends": "eslint:recommended"
 }
