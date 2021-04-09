@@ -8,7 +8,7 @@ export interface Header {
   keyLength: number;
   extrasLength: number;
   dataType?: number;
-  status?: ResponseStatus;
+  status?: ResponseStatus | number;
   totalBodyLength: number;
   opaque: number;
   cas?: Buffer;

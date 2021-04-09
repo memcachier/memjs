@@ -3,7 +3,7 @@
 import * as header from "./header";
 import { OP } from "./constants";
 
-type MaybeBuffer = string | Buffer;
+export type MaybeBuffer = string | Buffer;
 
 export const bufferify = function (val: MaybeBuffer) {
   return Buffer.isBuffer(val) ? val : Buffer.from(val as any);
@@ -55,7 +55,7 @@ export const makeRequestBuffer = function (
   key: MaybeBuffer,
   extras: MaybeBuffer,
   value: MaybeBuffer,
-  opaque: number
+  opaque?: number
 ) {
   key = bufferify(key);
   extras = bufferify(extras);
@@ -65,11 +65,11 @@ export const makeRequestBuffer = function (
 
   var buf = Buffer.alloc(bufSize);
   buf.fill(0);
-  exports.copyIntoRequestBuffer(opcode, key, extras, value, opaque, buf);
+  copyIntoRequestBuffer(opcode, key, extras, value, opaque || 0, buf);
   return buf;
 };
 
-exports.makeAmountInitialAndExpiration = function (
+export const makeAmountInitialAndExpiration = function (
   amount: number,
   amountIfEmpty: number,
   expiration: number
@@ -97,7 +97,7 @@ export const hashCode = function (str: string) {
   return Math.abs(ret);
 };
 
-interface Message {
+export interface Message {
   header: header.Header;
   key: Buffer;
   val: Buffer;
@@ -143,13 +143,13 @@ export const parseMessages = function (dataBuf: Buffer): Message[] {
   return messages;
 };
 
-export const merge = function <T>(original: T, deflt: T): T {
+export const merge = function <T>(original: any, deflt: T): T {
   for (let attrT of Object.keys(deflt)) {
     const attr: keyof T = attrT as any;
     const originalValue = original[attr];
 
     if (originalValue === undefined || originalValue === null) {
-      original[attr] = deflt[attr];
+      original[attr] = deflt[attr] as any;
     }
   }
   return original;
