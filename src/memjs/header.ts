@@ -7,25 +7,25 @@ export interface Header {
   opcode: OP;
   keyLength: number;
   extrasLength: number;
-  dataType: number;
-  status: ResponseStatus;
+  dataType?: number;
+  status?: ResponseStatus;
   totalBodyLength: number;
   opaque: number;
-  cas: Buffer;
+  cas?: Buffer;
 }
 
 /** fromBuffer converts a serialized header to a JS object. */
-export function fromBuffer(headerBuf: Buffer): Header | {} {
+export function fromBuffer(headerBuf: Buffer): Header {
   if (!headerBuf) {
-    return {};
+    return {} as any; // TODO
   }
   return {
     magic: headerBuf.readUInt8(0),
-    opcode: headerBuf.readUInt8(1),
+    opcode: headerBuf.readUInt8(1) as OP, // TODO: wrong type?
     keyLength: headerBuf.readUInt16BE(2),
     extrasLength: headerBuf.readUInt8(4),
     dataType: headerBuf.readUInt8(5),
-    status: headerBuf.readUInt16BE(6),
+    status: headerBuf.readUInt16BE(6) as ResponseStatus, // TODO: wrong type?
     totalBodyLength: headerBuf.readUInt32BE(8),
     opaque: headerBuf.readUInt32BE(12),
     cas: headerBuf.slice(16, 24),

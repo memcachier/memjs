@@ -1,31 +1,44 @@
 // # MemJS utility functions
 
-var header = require('./header');
+import * as header from "./header";
+import { OP } from "./constants";
 
-var bufferify = function(val) {
-  return Buffer.isBuffer(val) ? val : Buffer.from(val);
+type MaybeBuffer = string | Buffer;
+
+export const bufferify = function (val: MaybeBuffer) {
+  return Buffer.isBuffer(val) ? val : Buffer.from(val as any);
 };
-exports.bufferify = bufferify;
 
-exports.copyIntoRequestBuffer = function(opcode, key, extras, value, opaque, buf, _bufTargetWriteOffset) {
+export const copyIntoRequestBuffer = function (
+  opcode: OP,
+  key: MaybeBuffer,
+  extras: MaybeBuffer,
+  value: MaybeBuffer,
+  opaque: number,
+  buf: Buffer,
+  _bufTargetWriteOffset?: number
+) {
   key = bufferify(key);
   extras = bufferify(extras);
   value = bufferify(value);
 
   var bufTargetWriteOffset = _bufTargetWriteOffset || 0;
   var totalBytesWritten = 0;
-  function copyIntoBuffer(toWriteBuffer) {
-    var bytesWritten = toWriteBuffer.copy(buf, bufTargetWriteOffset + totalBytesWritten);
+  function copyIntoBuffer(toWriteBuffer: Buffer) {
+    var bytesWritten = toWriteBuffer.copy(
+      buf,
+      bufTargetWriteOffset + totalBytesWritten
+    );
     totalBytesWritten += bytesWritten;
   }
 
-  var requestHeader = {
+  var requestHeader: header.Header = {
     magic: 0x80,
     opcode: opcode,
     keyLength: key.length,
     extrasLength: extras.length,
     totalBodyLength: key.length + value.length + extras.length,
-    opaque: opaque
+    opaque: opaque,
   };
   var headerBuffer = header.toBuffer(requestHeader);
 
@@ -37,7 +50,13 @@ exports.copyIntoRequestBuffer = function(opcode, key, extras, value, opaque, buf
   return totalBytesWritten;
 };
 
-exports.makeRequestBuffer = function(opcode, key, extras, value, opaque) {
+export const makeRequestBuffer = function (
+  opcode: OP,
+  key: MaybeBuffer,
+  extras: MaybeBuffer,
+  value: MaybeBuffer,
+  opaque: number
+) {
   key = bufferify(key);
   extras = bufferify(extras);
   value = bufferify(value);
@@ -45,12 +64,16 @@ exports.makeRequestBuffer = function(opcode, key, extras, value, opaque) {
   var bufSize = 24 + key.length + extras.length + value.length;
 
   var buf = Buffer.alloc(bufSize);
-  buf.fill();
+  buf.fill(0);
   exports.copyIntoRequestBuffer(opcode, key, extras, value, opaque, buf);
   return buf;
 };
 
-exports.makeAmountInitialAndExpiration = function(amount, amountIfEmpty, expiration) {
+exports.makeAmountInitialAndExpiration = function (
+  amount: number,
+  amountIfEmpty: number,
+  expiration: number
+) {
   var buf = Buffer.alloc(20);
   buf.writeUInt32BE(0, 0);
   buf.writeUInt32BE(amount, 4);
@@ -60,29 +83,38 @@ exports.makeAmountInitialAndExpiration = function(amount, amountIfEmpty, expirat
   return buf;
 };
 
-exports.makeExpiration = function(expiration) {
+export const makeExpiration = function (expiration: number) {
   var buf = Buffer.alloc(4);
   buf.writeUInt32BE(expiration, 0);
   return buf;
 };
 
-exports.hashCode = function(str) {
+export const hashCode = function (str: string) {
   var ret, i, len;
-  for(ret = 0, i = 0, len = str.length; i < len; i++) {
+  for (ret = 0, i = 0, len = str.length; i < len; i++) {
     ret = (31 * ret + str.charCodeAt(i)) << 0;
   }
   return Math.abs(ret);
 };
 
-exports.parseMessage = function(dataBuf) {
+interface Message {
+  header: header.Header;
+  key: Buffer;
+  val: Buffer;
+  extras: Buffer;
+}
+
+export const parseMessage = function (dataBuf: Buffer): Message | false {
   if (dataBuf.length < 24) {
     return false;
   }
   var responseHeader = header.fromBuffer(dataBuf);
 
-  if (dataBuf.length < responseHeader.totalBodyLength + 24 ||
-      responseHeader.totalBodyLength <
-        responseHeader.keyLength + responseHeader.extrasLength) {
+  if (
+    dataBuf.length < responseHeader.totalBodyLength + 24 ||
+    responseHeader.totalBodyLength <
+      responseHeader.keyLength + responseHeader.extrasLength
+  ) {
     return false;
   }
 
@@ -93,10 +125,10 @@ exports.parseMessage = function(dataBuf) {
   pointer += responseHeader.keyLength;
   var val = dataBuf.slice(pointer, 24 + responseHeader.totalBodyLength);
 
-  return {header: responseHeader, key: key, extras: extras, val: val};
+  return { header: responseHeader, key: key, extras: extras, val: val };
 };
 
-exports.parseMessages = function(dataBuf) {
+export const parseMessages = function (dataBuf: Buffer): Message[] {
   var messages = [];
 
   do {
@@ -111,8 +143,9 @@ exports.parseMessages = function(dataBuf) {
   return messages;
 };
 
-exports.merge = function(original, deflt) {
-  for (let attr of Object.keys(deflt)) {
+export const merge = function <T>(original: T, deflt: T): T {
+  for (let attrT of Object.keys(deflt)) {
+    const attr: keyof T = attrT as any;
     const originalValue = original[attr];
 
     if (originalValue === undefined || originalValue === null) {
@@ -124,15 +157,15 @@ exports.merge = function(original, deflt) {
 
 // timestamp provides a monotonic timestamp with millisecond accuracy, useful
 // for timers.
-exports.timestamp = function() {
+export const timestamp = function () {
   var times = process.hrtime();
-  return (times[0] * 1000) + Math.round((times[1] / 1000000));
+  return times[0] * 1000 + Math.round(times[1] / 1000000);
 };
 
-if(!Buffer.concat) {
-  Buffer.concat = function(list, length) {
+if (!Buffer.concat) {
+  Buffer.concat = function (list, length) {
     if (!Array.isArray(list)) {
-      throw new Error('Usage: Buffer.concat(list, [length])');
+      throw new Error("Usage: Buffer.concat(list, [length])");
     }
 
     if (list.length === 0) {
@@ -144,7 +177,7 @@ if(!Buffer.concat) {
 
     var i, buf;
 
-    if (typeof length !== 'number') {
+    if (typeof length !== "number") {
       length = 0;
       for (i = 0; i < list.length; i++) {
         buf = list[i];
