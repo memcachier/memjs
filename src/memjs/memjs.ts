@@ -1,7 +1,12 @@
 // # MemJS Memcache Client
 
 import { errors, UNKNOWN_ERROR } from "./protocol";
-import { OnResponseCallback, Server, ServerOptions } from "./server";
+import {
+  OnErrorCallback,
+  OnResponseCallback,
+  Server,
+  ServerOptions,
+} from "./server";
 import {
   noopSerializer,
   Serializer,
@@ -501,17 +506,23 @@ class Client<Value, Extras> {
     }
   }
 
-  // SET
-  //
-  // Sets the given _key_ and _value_ in memcache.
-  //
-  // The options dictionary takes:
-  // * _expires_: overrides the default expiration (see `Client.create`) for this
-  //              particular key-value pair.
-  //
-  // The callback signature is:
-  //
-  //     callback(err, success)
+  /**
+   * SET
+   *
+   * Sets the given _key_ and _value_ in memcache.
+   *
+   * The options dictionary takes:
+   * * _expires_: overrides the default expiration (see `Client.create`) for this
+   *              particular key-value pair.
+   *
+   * The callback signature is:
+   *
+   *     callback(err, success)
+   * @param key
+   * @param value
+   * @param options
+   * @param callback
+   */
   set(
     key: string,
     value: Value,
@@ -531,7 +542,7 @@ class Client<Value, Extras> {
   set(
     key: string,
     value: Value,
-    options:
+    options?:
       | { expires?: number }
       | ((error: Error | null, success: boolean | null) => void),
     callback?: (error: Error | null, success: boolean | null) => void
@@ -564,7 +575,7 @@ class Client<Value, Extras> {
     }
 
     logger = this.options.logger;
-    expires = options.expires;
+    expires = (options || {}).expires;
 
     // TODO: support flags, support version (CAS)
     this.incrSeq();
@@ -572,11 +583,7 @@ class Client<Value, Extras> {
     var extras = Buffer.concat([Buffer.from("00000000", "hex"), expiration]);
 
     var opcode: constants.OP = 1;
-    var serialized = this.serializer.serialize(
-      opcode,
-      value,
-      extras as any /* TODO */
-    );
+    var serialized = this.serializer.serialize(opcode, value, extras);
     var request = makeRequestBuffer(
       opcode,
       key,
@@ -608,26 +615,60 @@ class Client<Value, Extras> {
     });
   }
 
-  // ADD
-  //
-  // Adds the given _key_ and _value_ to memcache. The operation only succeeds
-  // if the key is not already set.
-  //
-  // The options dictionary takes:
-  // * _expires_: overrides the default expiration (see `Client.create`) for this
-  //              particular key-value pair.
-  //
-  // The callback signature is:
-  //
-  //     callback(err, success)
-  add(key, value, options, callback) {
+  /**
+   * ADD
+   *
+   * Adds the given _key_ and _value_ to memcache. The operation only succeeds
+   * if the key is not already set.
+   *
+   * The options dictionary takes:
+   * * _expires_: overrides the default expiration (see `Client.create`) for this
+   *              particular key-value pair.
+   *
+   * The callback signature is:
+   *
+   *     callback(err, success)
+   * @param key
+   * @param value
+   * @param options
+   * @param callback
+   */
+  add(
+    key: string,
+    value: Value,
+    options?: { expires?: number }
+  ): Promise<boolean | null>;
+  add(
+    key: string,
+    value: Value,
+    callback: (error: Error | null, success: boolean | null) => void
+  ): void;
+  add(
+    key: string,
+    value: Value,
+    options: { expires?: number },
+    callback: (error: Error | null, success: boolean | null) => void
+  ): void;
+  add(
+    key: string,
+    value: Value,
+    options?:
+      | { expires?: number }
+      | ((error: Error | null, success: boolean | null) => void),
+    callback?: (error: Error | null, success: boolean | null) => void
+  ): Promise<boolean | null> | void {
     if (callback === undefined && options !== "function") {
       var self = this;
       if (!options) options = {};
       return promisify(function (callback) {
-        self.add(key, value, options, function (err, success) {
-          callback(err, success);
-        });
+        self.add(
+          key,
+          value,
+          options as { expires?: number },
+          function (err, success) {
+            callback(err, success);
+          }
+        );
       });
     }
     var logger = this.options.logger;
@@ -641,14 +682,14 @@ class Client<Value, Extras> {
     }
 
     logger = this.options.logger;
-    expires = options.expires;
+    expires = (options || {}).expires;
 
     // TODO: support flags, support version (CAS)
     this.incrSeq();
     var expiration = makeExpiration(expires || this.options.expires);
     var extras = Buffer.concat([Buffer.from("00000000", "hex"), expiration]);
 
-    var opcode = 2;
+    var opcode: constants.OP = 2;
     var serialized = this.serializer.serialize(opcode, value, extras);
     var request = makeRequestBuffer(
       opcode,
@@ -660,11 +701,11 @@ class Client<Value, Extras> {
     this.perform(key, request, this.seq, function (err, response) {
       if (err) {
         if (callback) {
-          callback(err, null, null);
+          callback(err, null);
         }
         return;
       }
-      switch (response.header.status) {
+      switch (response!.header.status) {
         case constants.RESPONSE_STATUS_SUCCCESS:
           if (callback) {
             callback(null, true);
@@ -676,35 +717,70 @@ class Client<Value, Extras> {
           }
           break;
         default:
-          var errorMessage = "MemJS ADD: " + errors[response.header.status];
+          var errorMessage =
+            "MemJS ADD: " + errors[response!.header.status || UNKNOWN_ERROR];
           logger.log(errorMessage, false);
           if (callback) {
-            callback(new Error(errorMessage), null, null);
+            callback(new Error(errorMessage), null);
           }
       }
     });
   }
 
-  // REPLACE
-  //
-  // Replaces the given _key_ and _value_ to memcache. The operation only succeeds
-  // if the key is already present.
-  //
-  // The options dictionary takes:
-  // * _expires_: overrides the default expiration (see `Client.create`) for this
-  //              particular key-value pair.
-  //
-  // The callback signature is:
-  //
-  //     callback(err, success)
-  replace(key, value, options, callback) {
+  /**
+   * REPLACE
+   *
+   * Replaces the given _key_ and _value_ to memcache. The operation only succeeds
+   * if the key is already present.
+   *
+   * The options dictionary takes:
+   * * _expires_: overrides the default expiration (see `Client.create`) for this
+   *              particular key-value pair.
+   *
+   * The callback signature is:
+   *
+   *     callback(err, success)
+   * @param key
+   * @param value
+   * @param options
+   * @param callback
+   */
+  replace(
+    key: string,
+    value: Value,
+    options?: { expires?: number }
+  ): Promise<boolean | null>;
+  replace(
+    key: string,
+    value: Value,
+    callback: (error: Error | null, success: boolean | null) => void
+  ): void;
+  replace(
+    key: string,
+    value: Value,
+    options: { expires?: number },
+    callback: (error: Error | null, success: boolean | null) => void
+  ): void;
+  replace(
+    key: string,
+    value: Value,
+    options?:
+      | { expires?: number }
+      | ((error: Error | null, success: boolean | null) => void),
+    callback?: (error: Error | null, success: boolean | null) => void
+  ): Promise<boolean | null> | void {
     if (callback === undefined && options !== "function") {
       var self = this;
       if (!options) options = {};
       return promisify(function (callback) {
-        self.replace(key, value, options, function (err, success) {
-          callback(err, success);
-        });
+        self.replace(
+          key,
+          value,
+          options as { expires?: number },
+          function (err, success) {
+            callback(err, success);
+          }
+        );
       });
     }
     var logger = this.options.logger;
@@ -720,14 +796,14 @@ class Client<Value, Extras> {
     }
 
     logger = this.options.logger;
-    expires = options.expires;
+    expires = (options || {}).expires;
 
     // TODO: support flags, support version (CAS)
     this.incrSeq();
     var expiration = makeExpiration(expires || this.options.expires);
     var extras = Buffer.concat([Buffer.from("00000000", "hex"), expiration]);
 
-    var opcode = 3;
+    var opcode: constants.OP = 3;
     var serialized = this.serializer.serialize(opcode, value, extras);
     var request = makeRequestBuffer(
       opcode,
@@ -739,11 +815,11 @@ class Client<Value, Extras> {
     this.perform(key, request, this.seq, function (err, response) {
       if (err) {
         if (callback) {
-          callback(err, null, null);
+          callback(err, null);
         }
         return;
       }
-      switch (response.header.status) {
+      switch (response!.header.status) {
         case constants.RESPONSE_STATUS_SUCCCESS:
           if (callback) {
             callback(null, true);
@@ -755,29 +831,43 @@ class Client<Value, Extras> {
           }
           break;
         default:
-          var errorMessage = "MemJS REPLACE: " + errors[response.header.status];
+          var errorMessage =
+            "MemJS REPLACE: " +
+            errors[response!.header.status || UNKNOWN_ERROR];
           logger.log(errorMessage, false);
           if (callback) {
-            callback(new Error(errorMessage), null, null);
+            callback(new Error(errorMessage), null);
           }
       }
     });
   }
 
-  // DELETE
-  //
-  // Deletes the given _key_ from memcache. The operation only succeeds
-  // if the key is already present.
-  //
-  // The callback signature is:
-  //
-  //     callback(err, success)
-  delete(key, callback) {
+  /**
+   * DELETE
+   *
+   * Deletes the given _key_ from memcache. The operation only succeeds
+   * if the key is already present.
+   *
+   * The callback signature is:
+   *
+   *     callback(err, success)
+   * @param key
+   * @param callback
+   */
+  delete(key: string): Promise<boolean>;
+  delete(
+    key: string,
+    callback: (err: Error | null, success: boolean | null) => void
+  ): void;
+  delete(
+    key: string,
+    callback?: (err: Error | null, success: boolean | null) => void
+  ): Promise<boolean> | void {
     if (callback === undefined) {
       var self = this;
       return promisify(function (callback) {
         self.delete(key, function (err, success) {
-          callback(err, success);
+          callback(err, Boolean(success));
         });
       });
     }
@@ -788,11 +878,11 @@ class Client<Value, Extras> {
     this.perform(key, request, this.seq, function (err, response) {
       if (err) {
         if (callback) {
-          callback(err, null, null);
+          callback(err, null);
         }
         return;
       }
-      switch (response.header.status) {
+      switch (response!.header.status) {
         case constants.RESPONSE_STATUS_SUCCCESS:
           if (callback) {
             callback(null, true);
@@ -804,7 +894,8 @@ class Client<Value, Extras> {
           }
           break;
         default:
-          var errorMessage = "MemJS DELETE: " + errors[response.header.status];
+          var errorMessage =
+            "MemJS DELETE: " + errors[response!.header.status || UNKNOWN_ERROR];
           logger.log(errorMessage, false);
           if (callback) {
             callback(new Error(errorMessage), null);
@@ -813,25 +904,55 @@ class Client<Value, Extras> {
     });
   }
 
-  // INCREMENT
-  //
-  // Increments the given _key_ in memcache.
-  //
-  // The options dictionary takes:
-  // * _initial_: the value for the key if not already present, defaults to 0.
-  // * _expires_: overrides the default expiration (see `Client.create`) for this
-  //              particular key-value pair.
-  //
-  // The callback signature is:
-  //
-  //     callback(err, success, value)
-  increment(key, amount, options, callback) {
+  /**
+   * INCREMENT
+   *
+   * Increments the given _key_ in memcache.
+   *
+   * The options dictionary takes:
+   * * _initial_: the value for the key if not already present, defaults to 0.
+   * * _expires_: overrides the default expiration (see `Client.create`) for this
+   *              particular key-value pair.
+   *
+   * The callback signature is:
+   *
+   *     callback(err, success, value)
+   * @param key
+   * @param amount
+   * @param options
+   * @param callback
+   */
+  increment(
+    key: string,
+    amount: number,
+    options: { initial?: number; expires?: number }
+  ): Promise<{ value: number | null; success: boolean | null }>;
+  increment(
+    key: string,
+    amount: number,
+    options: { initial?: number; expires?: number },
+    callback: (
+      error: Error | null,
+      success: boolean | null,
+      value?: number | null
+    ) => void
+  ): void;
+  increment(
+    key: string,
+    amount: number,
+    options: { initial?: number; expires?: number },
+    callback?: (
+      error: Error | null,
+      success: boolean | null,
+      value?: number | null
+    ) => void
+  ): Promise<{ value: number | null; success: boolean | null }> | void {
     if (callback === undefined && options !== "function") {
       var self = this;
       return promisify(function (callback) {
         if (!options) options = {};
         self.increment(key, amount, options, function (err, success, value) {
-          callback(err, { success: success, value: value });
+          callback(err, { success: success, value: value || null });
         });
       });
     }
@@ -866,17 +987,19 @@ class Client<Value, Extras> {
         }
         return;
       }
-      switch (response.header.status) {
+      switch (response!.header.status) {
         case constants.RESPONSE_STATUS_SUCCCESS:
           var bufInt =
-            (response.val.readUInt32BE(0) << 8) + response.val.readUInt32BE(4);
+            (response!.val.readUInt32BE(0) << 8) +
+            response!.val.readUInt32BE(4);
           if (callback) {
             callback(null, true, bufInt);
           }
           break;
         default:
           var errorMessage =
-            "MemJS INCREMENT: " + errors[response.header.status];
+            "MemJS INCREMENT: " +
+            errors[response!.header.status || UNKNOWN_ERROR];
           logger.log(errorMessage);
           if (callback) {
             callback(new Error(errorMessage), null, null);
@@ -897,12 +1020,36 @@ class Client<Value, Extras> {
   // The callback signature is:
   //
   //     callback(err, success, value)
-  decrement(key, amount, options, callback) {
+  decrement(
+    key: string,
+    amount: number,
+    options: { initial?: number; expires?: number }
+  ): Promise<{ value: number | null; success: boolean | null }>;
+  decrement(
+    key: string,
+    amount: number,
+    options: { initial?: number; expires?: number },
+    callback: (
+      error: Error | null,
+      success: boolean | null,
+      value?: number | null
+    ) => void
+  ): void;
+  decrement(
+    key: string,
+    amount: number,
+    options: { initial?: number; expires?: number },
+    callback?: (
+      error: Error | null,
+      success: boolean | null,
+      value?: number | null
+    ) => void
+  ): Promise<{ value: number | null; success: boolean | null }> | void {
     if (callback === undefined && options !== "function") {
       var self = this;
       return promisify(function (callback) {
         self.decrement(key, amount, options, function (err, success, value) {
-          callback(err, { success: success, value: value });
+          callback(err, { success: success, value: value || null });
         });
       });
     }
@@ -938,17 +1085,19 @@ class Client<Value, Extras> {
         }
         return;
       }
-      switch (response.header.status) {
+      switch (response!.header.status) {
         case constants.RESPONSE_STATUS_SUCCCESS:
           var bufInt =
-            (response.val.readUInt32BE(0) << 8) + response.val.readUInt32BE(4);
+            (response!.val.readUInt32BE(0) << 8) +
+            response!.val.readUInt32BE(4);
           if (callback) {
             callback(null, true, bufInt);
           }
           break;
         default:
           var errorMessage =
-            "MemJS DECREMENT: " + errors[response.header.status];
+            "MemJS DECREMENT: " +
+            errors[response!.header.status || UNKNOWN_ERROR];
           logger.log(errorMessage);
           if (callback) {
             callback(new Error(errorMessage), null, null);
@@ -957,14 +1106,29 @@ class Client<Value, Extras> {
     });
   }
 
-  // APPEND
-  //
-  // Append the given _value_ to the value associated with the given _key_ in
-  // memcache. The operation only succeeds if the key is already present. The
-  // callback signature is:
-  //
-  //     callback(err, success)
-  append(key, value, callback) {
+  /**
+   * APPEND
+   *
+   * Append the given _value_ to the value associated with the given _key_ in
+   * memcache. The operation only succeeds if the key is already present. The
+   * callback signature is:
+   *
+   *     callback(err, success)
+   * @param key
+   * @param value
+   * @param callback
+   */
+  append(key: string, value: Value): Promise<boolean>;
+  append(
+    key: string,
+    value: Value,
+    callback: (err: Error | null, success: boolean | null) => void
+  ): void;
+  append(
+    key: string,
+    value: Value,
+    callback?: (err: Error | null, success: boolean | null) => void
+  ) {
     if (callback === undefined) {
       var self = this;
       return promisify(function (callback) {
@@ -976,7 +1140,7 @@ class Client<Value, Extras> {
     // TODO: support version (CAS)
     var logger = this.options.logger;
     this.incrSeq();
-    var opcode = 0x0e;
+    var opcode: constants.OP = 0x0e;
     var serialized = this.serializer.serialize(opcode, value, "");
     var request = makeRequestBuffer(
       opcode,
@@ -992,7 +1156,7 @@ class Client<Value, Extras> {
         }
         return;
       }
-      switch (response.header.status) {
+      switch (response!.header.status) {
         case constants.RESPONSE_STATUS_SUCCCESS:
           if (callback) {
             callback(null, true);
@@ -1004,7 +1168,8 @@ class Client<Value, Extras> {
           }
           break;
         default:
-          var errorMessage = "MemJS APPEND: " + errors[response.header.status];
+          var errorMessage =
+            "MemJS APPEND: " + errors[response!.header.status || UNKNOWN_ERROR];
           logger.log(errorMessage);
           if (callback) {
             callback(new Error(errorMessage), null);
@@ -1013,14 +1178,29 @@ class Client<Value, Extras> {
     });
   }
 
-  // PREPEND
-  //
-  // Prepend the given _value_ to the value associated with the given _key_ in
-  // memcache. The operation only succeeds if the key is already present. The
-  // callback signature is:
-  //
-  //     callback(err, success)
-  prepend(key, value, callback) {
+  /**
+   * PREPEND
+   *
+   * Prepend the given _value_ to the value associated with the given _key_ in
+   * memcache. The operation only succeeds if the key is already present. The
+   * callback signature is:
+   *
+   *     callback(err, success)
+   * @param key
+   * @param value
+   * @param callback
+   */
+  prepend(key: string, value: Value): Promise<boolean>;
+  prepend(
+    key: string,
+    value: Value,
+    callback: (err: Error | null, success: boolean | null) => void
+  ): void;
+  prepend(
+    key: string,
+    value: Value,
+    callback?: (err: Error | null, success: boolean | null) => void
+  ) {
     if (callback === undefined) {
       var self = this;
       return promisify(function (callback) {
@@ -1033,7 +1213,7 @@ class Client<Value, Extras> {
     var logger = this.options.logger;
     this.incrSeq();
 
-    var opcode = 0x0e;
+    var opcode: constants.OP = constants.OP_PREPEND; /* WAS WRONG IN ORIGINAL */
     var serialized = this.serializer.serialize(opcode, value, "");
     var request = makeRequestBuffer(
       opcode,
@@ -1049,7 +1229,7 @@ class Client<Value, Extras> {
         }
         return;
       }
-      switch (response.header.status) {
+      switch (response!.header.status) {
         case constants.RESPONSE_STATUS_SUCCCESS:
           if (callback) {
             callback(null, true);
@@ -1061,7 +1241,9 @@ class Client<Value, Extras> {
           }
           break;
         default:
-          var errorMessage = "MemJS PREPEND: " + errors[response.header.status];
+          var errorMessage =
+            "MemJS PREPEND: " +
+            errors[response!.header.status || UNKNOWN_ERROR];
           logger.log(errorMessage);
           if (callback) {
             callback(new Error(errorMessage), null);
@@ -1070,19 +1252,34 @@ class Client<Value, Extras> {
     });
   }
 
-  // TOUCH
-  //
-  // Touch sets an expiration value, given by _expires_, on the given _key_ in
-  // memcache. The operation only succeeds if the key is already present. The
-  // callback signature is:
-  //
-  //     callback(err, success)
-  touch(key, expires, callback) {
+  /**
+   * TOUCH
+   *
+   * Touch sets an expiration value, given by _expires_, on the given _key_ in
+   * memcache. The operation only succeeds if the key is already present. The
+   * callback signature is:
+   *
+   *     callback(err, success)
+   * @param key
+   * @param expires
+   * @param callback
+   */
+  touch(key: string, expires: number): Promise<boolean>;
+  touch(
+    key: string,
+    expires: number,
+    callback: (err: Error | null, success: boolean | null) => void
+  ): void;
+  touch(
+    key: string,
+    expires: number,
+    callback?: (err: Error | null, success: boolean | null) => void
+  ): Promise<boolean> | void {
     if (callback === undefined) {
       var self = this;
       return promisify(function (callback) {
         self.touch(key, expires, function (err, success) {
-          callback(err, success);
+          callback(err, Boolean(success));
         });
       });
     }
@@ -1098,7 +1295,7 @@ class Client<Value, Extras> {
         }
         return;
       }
-      switch (response.header.status) {
+      switch (response!.header.status) {
         case constants.RESPONSE_STATUS_SUCCCESS:
           if (callback) {
             callback(null, true);
@@ -1110,7 +1307,8 @@ class Client<Value, Extras> {
           }
           break;
         default:
-          var errorMessage = "MemJS TOUCH: " + errors[response.header.status];
+          var errorMessage =
+            "MemJS TOUCH: " + errors[response!.header.status || UNKNOWN_ERROR];
           logger.log(errorMessage);
           if (callback) {
             callback(new Error(errorMessage), null);
@@ -1119,16 +1317,31 @@ class Client<Value, Extras> {
     });
   }
 
-  // FLUSH
-  //
-  // Flushes the cache on each connected server. The callback signature is:
-  //
-  //     callback(lastErr, results)
-  //
-  // where _lastErr_ is the last error encountered (or null, in the common case
-  // of no errors). _results_ is a dictionary mapping `"hostname:port"` to either
-  // `true` (if the operation was successful), or an error.
-  flush(callback) {
+  /**
+   * FLUSH
+   *
+   * Flushes the cache on each connected server. The callback signature is:
+   *
+   *     callback(lastErr, results)
+   *
+   * where _lastErr_ is the last error encountered (or null, in the common case
+   * of no errors). _results_ is a dictionary mapping `"hostname:port"` to either
+   * `true` (if the operation was successful), or an error.
+   * @param callback
+   */
+  flush(): Promise<Record<string, boolean | Error>>;
+  flush(
+    callback: (
+      err: Error | null,
+      results: Record<string, boolean | Error>
+    ) => void
+  ): void;
+  flush(
+    callback?: (
+      err: Error | null,
+      results: Record<string, boolean | Error>
+    ) => void
+  ) {
     if (callback === undefined) {
       var self = this;
       return promisify(function (callback) {
@@ -1141,11 +1354,11 @@ class Client<Value, Extras> {
     this.incrSeq();
     var request = makeRequestBuffer(0x08, "", "", "", this.seq);
     var count = this.servers.length;
-    var result = {};
-    var lastErr = null;
+    var result: Record<string, boolean | Error> = {};
+    var lastErr: Error | null = null;
     var i;
 
-    var handleFlush = function (seq, serv) {
+    var handleFlush = function (seq: number, serv: Server) {
       serv.onResponse(seq, function (/* response */) {
         count -= 1;
         result[serv.hostportString()] = true;
@@ -1169,24 +1382,35 @@ class Client<Value, Extras> {
     }
   }
 
-  // STATS_WITH_KEY
-  //
-  // Sends a memcache stats command with a key to each connected server. The
-  // callback is invoked **ONCE PER SERVER** and has the signature:
-  //
-  //     callback(err, server, stats)
-  //
-  // _server_ is the `"hostname:port"` of the server, and _stats_ is a dictionary
-  // mapping the stat name to the value of the statistic as a string.
-  statsWithKey(key, callback) {
+  /**
+   * STATS_WITH_KEY
+   *
+   * Sends a memcache stats command with a key to each connected server. The
+   * callback is invoked **ONCE PER SERVER** and has the signature:
+   *
+   *     callback(err, server, stats)
+   *
+   * _server_ is the `"hostname:port"` of the server, and _stats_ is a dictionary
+   * mapping the stat name to the value of the statistic as a string.
+   * @param key
+   * @param callback
+   */
+  statsWithKey(
+    key: string,
+    callback?: (
+      err: Error | null,
+      server: string,
+      stats: Record<string, string> | null
+    ) => void
+  ): void {
     var logger = this.options.logger;
     this.incrSeq();
     var request = makeRequestBuffer(0x10, key, "", "", this.seq);
     var i;
 
-    var handleStats = function (seq, serv) {
-      var result = {};
-      var handle = function (response) {
+    var handleStats = function (seq: number, serv: Server) {
+      var result: Record<string, string> = {};
+      var handle: OnResponseCallback = function (response) {
         // end of stat responses
         if (response.header.totalBodyLength === 0) {
           if (callback) {
@@ -1201,7 +1425,10 @@ class Client<Value, Extras> {
             break;
           default:
             var errorMessage =
-              "MemJS STATS (" + key + "): " + errors[response.header.status];
+              "MemJS STATS (" +
+              key +
+              "): " +
+              errors[response.header.status || UNKNOWN_ERROR];
             logger.log(errorMessage, false);
             if (callback) {
               callback(new Error(errorMessage), serv.hostportString(), null);
@@ -1224,40 +1451,60 @@ class Client<Value, Extras> {
     }
   }
 
-  // STATS
-  //
-  // Fetches memcache stats from each connected server. The callback is invoked
-  // **ONCE PER SERVER** and has the signature:
-  //
-  //     callback(err, server, stats)
-  //
-  // _server_ is the `"hostname:port"` of the server, and _stats_ is a
-  // dictionary mapping the stat name to the value of the statistic as a string.
-  stats(callback) {
+  /**
+   * STATS
+   *
+   * Fetches memcache stats from each connected server. The callback is invoked
+   * **ONCE PER SERVER** and has the signature:
+   *
+   *     callback(err, server, stats)
+   *
+   * _server_ is the `"hostname:port"` of the server, and _stats_ is a
+   * dictionary mapping the stat name to the value of the statistic as a string.
+   * @param callback
+   */
+  stats(
+    callback?: (
+      err: Error | null,
+      server: string,
+      stats: Record<string, string> | null
+    ) => void
+  ): void {
     this.statsWithKey("", callback);
   }
 
-  // RESET_STATS
-  //
-  // Reset the statistics each server is keeping back to zero. This doesn't clear
-  // stats such as item count, but temporary stats such as total number of
-  // connections over time.
-  //
-  // The callback is invoked **ONCE PER SERVER** and has the signature:
-  //
-  //     callback(err, server)
-  //
-  // _server_ is the `"hostname:port"` of the server.
-  resetStats(callback) {
+  /**
+   * RESET_STATS
+   *
+   * Reset the statistics each server is keeping back to zero. This doesn't clear
+   * stats such as item count, but temporary stats such as total number of
+   * connections over time.
+   *
+   * The callback is invoked **ONCE PER SERVER** and has the signature:
+   *
+   *     callback(err, server)
+   *
+   * _server_ is the `"hostname:port"` of the server.
+   * @param callback
+   */
+  resetStats(
+    callback?: (
+      err: Error | null,
+      server: string,
+      stats: Record<string, string> | null
+    ) => void
+  ): void {
     this.statsWithKey("reset", callback);
   }
 
-  // QUIT
-  //
-  // Closes the connection to each server, notifying them of this intention. Note
-  // that quit can race against already outstanding requests when those requests
-  // fail and are retried, leading to the quit command winning and closing the
-  // connection before the retries complete.
+  /**
+   * QUIT
+   *
+   * Closes the connection to each server, notifying them of this intention. Note
+   * that quit can race against already outstanding requests when those requests
+   * fail and are retried, leading to the quit command winning and closing the
+   * connection before the retries complete.
+   */
   quit() {
     this.incrSeq();
     // TODO: Nicer perhaps to do QUITQ (0x17) but need a new callback for when
@@ -1266,7 +1513,7 @@ class Client<Value, Extras> {
     var serv;
     var i;
 
-    var handleQuit = function (seq, serv) {
+    var handleQuit = function (seq: number, serv: Server) {
       serv.onResponse(seq, function (/* response */) {
         serv.close();
       });
@@ -1282,7 +1529,25 @@ class Client<Value, Extras> {
     }
   }
 
-  _version(server, callback) {
+  _version(
+    server: Server
+  ): Promise<{ value: Value | null; flags: Extras | null }>;
+  _version(
+    server: Server,
+    callback: (
+      error: Error | null,
+      value: Value | null,
+      flags: Extras | null
+    ) => void
+  ): void;
+  _version(
+    server: Server,
+    callback?: (
+      error: Error | null,
+      value: Value | null,
+      extras: Extras | null
+    ) => void
+  ): Promise<{ value: Value | null; flags: Extras | null }> | void {
     var self = this;
     if (callback === undefined) {
       return promisify(function (callback) {
@@ -1304,17 +1569,21 @@ class Client<Value, Extras> {
         return;
       }
 
-      switch (response.header.status) {
+      switch (response!.header.status) {
         case constants.RESPONSE_STATUS_SUCCCESS:
+          /* TODO: this is bugged, we should't use the deserializer here, since version always returns a version string.
+             The deserializer should only be used on user key data. */
           var deserialized = self.serializer.deserialize(
-            response.header.opcode,
-            response.val,
-            response.extras
+            response!.header.opcode,
+            response!.val,
+            response!.extras
           );
           callback(null, deserialized.value, deserialized.extras);
           break;
         default:
-          var errorMessage = "MemJS VERSION: " + errors[response.header.status];
+          var errorMessage =
+            "MemJS VERSION: " +
+            errors[(response!.header.status, UNKNOWN_ERROR)];
           logger.log(errorMessage);
           if (callback) {
             callback(new Error(errorMessage), null, null);
@@ -1323,19 +1592,67 @@ class Client<Value, Extras> {
     });
   }
 
-  // VERSION
-  //
-  // Request the server version from the "first" server in the backend pool
-  //
-  // The server responds with a packet containing the version string in the body with the following format: "x.y.z"
-
-  version(callback) {
+  /**
+   * VERSION
+   *
+   * Request the server version from the "first" server in the backend pool.
+   *
+   * The server responds with a packet containing the version string in the body with the following format: "x.y.z"
+   */
+  version(): Promise<{ value: Value | null; flags: Extras | null }>;
+  version(
+    callback: (
+      error: Error | null,
+      value: Value | null,
+      flags: Extras | null
+    ) => void
+  ): void;
+  version(
+    callback?: (
+      error: Error | null,
+      value: Value | null,
+      extras: Extras | null
+    ) => void
+  ) {
     const server = this.serverKeyToServer(this.serverKeys[0]);
-
-    return this._version(server, callback);
+    if (callback) {
+      this._version(server, callback);
+    } else {
+      return this._version(server);
+    }
   }
 
-  versionAll(callback) {
+  /**
+   * VERSION-ALL
+   *
+   * Retrieves the server version from all the servers
+   * in the backend pool, errors if any one of them has an
+   * error
+   *
+   * The callback signature is:
+   *
+   *     callback(err, value, flags)
+   *
+   * @param keys
+   * @param callback
+   */
+  versionAll(): Promise<{
+    values: Record<string, Value | null>;
+  }>;
+  versionAll(
+    callback: (
+      err: Error | null,
+      values: Record<string, Value | null> | null
+    ) => void
+  ): void;
+  versionAll(
+    callback?: (
+      err: Error | null,
+      values: Record<string, Value | null> | null
+    ) => void
+  ): Promise<{
+    values: Record<string, Value | null>;
+  }> | void {
     const promise = Promise.all(
       this.serverKeys.map((serverKey) => {
         const server = this.serverKeyToServer(serverKey);
@@ -1348,14 +1665,14 @@ class Client<Value, Extras> {
       const values = versionObjects.reduce((accumulator, versionObject) => {
         accumulator[versionObject.serverKey] = versionObject.value;
         return accumulator;
-      }, {});
+      }, {} as Record<string, Value | null>);
       return { values: values };
     });
 
     if (callback === undefined) {
       return promise;
     }
-    return promise
+    promise
       .then((response) => {
         callback(null, response.values);
       })
@@ -1364,9 +1681,11 @@ class Client<Value, Extras> {
       });
   }
 
-  // CLOSE
-  //
-  // Closes (abruptly) connections to all the servers.
+  /**
+   * CLOSE
+   *
+   * Closes (abruptly) connections to all the servers.
+   */
   close() {
     var i;
     for (i = 0; i < this.servers.length; i++) {
@@ -1375,15 +1694,15 @@ class Client<Value, Extras> {
   }
 
   /**
- * Perform a generic single response operation (get, set etc) on one server
- *
- * @param {string} key the key to hash to get a server from the pool
- * @param {buffer} request a buffer containing the request
- * @param {number} seq the sequence number of the operation. It is used to pin the callbacks
-                       to a specific operation and should never change during a `perform`.
- * @param {*} callback a callback invoked when a response is received or the request fails
- * @param {*} retries number of times to retry request on failure
- */
+   * Perform a generic single response operation (get, set etc) on one server
+   *
+   * @param {string} key the key to hash to get a server from the pool
+   * @param {buffer} request a buffer containing the request
+   * @param {number} seq the sequence number of the operation. It is used to pin the callbacks
+                         to a specific operation and should never change during a `perform`.
+   * @param {*} callback a callback invoked when a response is received or the request fails
+   * @param {*} retries number of times to retry request on failure
+   */
   perform(
     key: string,
     request: Buffer,
@@ -1407,9 +1726,9 @@ class Client<Value, Extras> {
   performOnServer(
     server: Server,
     request: Buffer,
-    seq: Number,
+    seq: number,
     callback: ResponseOrErrorCallback,
-    retries?: number
+    retries: number = 0
   ) {
     var _this = this;
 
@@ -1418,13 +1737,13 @@ class Client<Value, Extras> {
     var logger = this.options.logger;
     var retry_delay = this.options.retry_delay;
 
-    var responseHandler = function (response) {
+    var responseHandler: OnResponseCallback = function (response) {
       if (callback) {
         callback(null, response);
       }
     };
 
-    var errorHandler = function (error) {
+    var errorHandler: OnErrorCallback = function (error) {
       if (--retries > 0) {
         // Wait for retry_delay
         setTimeout(function () {

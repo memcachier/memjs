@@ -10,7 +10,7 @@ export interface Serializer<Value, Extras> {
   serialize(
     opcode: OP,
     value: Value,
-    extras: Extras
+    extras: MaybeBuffer
   ): SerializerResult<MaybeBuffer, MaybeBuffer>;
   deserialize(
     opcode: OP,
