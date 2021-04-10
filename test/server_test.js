@@ -20,7 +20,7 @@ test('ResponseHandler with authentication error', function(t) {
   var server = new MemJS.Server('localhost', 11211);
 
   server.onError('test', function(err) {
-    t.equal('Memcached server authentication failed!', err);
+    t.equal('Memcached server authentication failed!', err.message);
   });
 
   // Simulate a memcached server response, with an authentication error

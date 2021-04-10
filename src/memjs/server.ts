@@ -35,7 +35,7 @@ export interface OnErrorCallback {
 export class Server extends events.EventEmitter {
   responseBuffer: Buffer;
   host: string;
-  port: number;
+  port: string | number | undefined;
   connected: boolean;
   timeoutSet: boolean;
   connectCallbacks: OnConnectCallback[];
@@ -50,7 +50,8 @@ export class Server extends events.EventEmitter {
 
   constructor(
     host: string,
-    port: string | number,
+    /* TODO: allowing port to be string or undefined is used by the tests, but seems bad overall. */
+    port?: string | number,
     username?: string,
     password?: string,
     options?: Partial<ServerOptions>
@@ -58,7 +59,7 @@ export class Server extends events.EventEmitter {
     super();
     this.responseBuffer = Buffer.from([]);
     this.host = host;
-    this.port = parseInt(port.toString(), 10);
+    this.port = port;
     this.connected = false;
     this.timeoutSet = false;
     this.connectCallbacks = [];
@@ -174,7 +175,10 @@ export class Server extends events.EventEmitter {
       // CASE 1: completely new socket
       self.connected = false;
       self._socket = net.connect(
-        this.port,
+        /* TODO: allowing port to be string or undefined is used by the tests, but seems bad overall. */
+        typeof this.port === "string"
+          ? parseInt(this.port, 10)
+          : this.port || 11211,
         this.host,
         function (this: net.Socket) {
           // SASL authentication handler

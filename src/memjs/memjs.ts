@@ -77,7 +77,7 @@ type GivenClientOptions<Value, Extras> = Partial<BaseClientOptions> &
 class Client<Value, Extras> {
   servers: Server[];
   seq: number;
-  options: BaseClientOptions;
+  options: BaseClientOptions & Partial<SerializerProp<Value, Extras>>;
   serializer: Serializer<Value, Extras>;
   serverMap: { [hostport: string]: Server };
   serverKeys: string[];
@@ -95,7 +95,7 @@ class Client<Value, Extras> {
       keyToServerHashFunction: defaultKeyToServerHashFunction,
     });
 
-    this.serializer = options.serializer || (noopSerializer as any);
+    this.serializer = this.options.serializer || (noopSerializer as any);
 
     // Store a mapping from hostport -> server so we can quickly get a server object from the serverKey returned by the hashing function
     var serverMap: { [hostport: string]: Server } = {};
