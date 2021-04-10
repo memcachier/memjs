@@ -23,6 +23,8 @@ import {
   Message,
 } from "./utils";
 import * as constants from "./constants";
+import * as Utils from "./utils";
+import * as Header from "./header";
 
 function defaultKeyToServerHashFunction(servers: string[], key: string) {
   var total = servers.length;
@@ -1772,7 +1774,4 @@ class Client<Value, Extras> {
   }
 }
 
-exports.Client = Client;
-exports.Server = Server;
-exports.Utils = require("./utils");
-exports.Header = require("./header");
+export { Client, Server, Utils, Header };
