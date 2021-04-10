@@ -23,7 +23,6 @@ import {
   Message,
 } from "./utils";
 import * as constants from "./constants";
-import { assert } from "node:console";
 
 function defaultKeyToServerHashFunction(servers: string[], key: string) {
   var total = servers.length;
@@ -42,17 +41,10 @@ function promisify<Result>(
   });
 }
 
-type CallbackArgs<T extends Array<any>> = [Error, ...Partial<T>] | [null, ...T];
-
 type ResponseOrErrorCallback = (
   error: Error | null,
   response: Message | null
 ) => void;
-
-// interface ResponseOrErrorCallback {
-//   (error: Error, response: null): void;
-//   (error: null, response: Message): void;
-// }
 
 interface BaseClientOptions {
   retries: number;
@@ -114,55 +106,57 @@ class Client<Value, Extras> {
     this.serverKeys = Object.keys(this.serverMap);
   }
 
-  // Creates a new client given an optional config string and optional hash of
-  // options. The config string should be of the form:
-  //
-  //     "[user:pass@]server1[:11211],[user:pass@]server2[:11211],..."
-  //
-  // If the argument is not given, fallback on the `MEMCACHIER_SERVERS` environment
-  // variable, `MEMCACHE_SERVERS` environment variable or `"localhost:11211"`.
-  //
-  // The options hash may contain the options:
-  //
-  // * `retries` - the number of times to retry an operation in lieu of failures
-  // (default 2)
-  // * `expires` - the default expiration in seconds to use (default 0 - never
-  // expire). If `expires` is greater than 30 days (60 x 60 x 24 x 30), it is
-  // treated as a UNIX time (number of seconds since January 1, 1970).
-  // * `logger` - a logger object that responds to `log(string)` method calls.
-  //
-  //   ~~~~
-  //     log(msg1[, msg2[, msg3[...]]])
-  //   ~~~~
-  //
-  //   Defaults to `console`.
-  // * `serializer` - the object which will (de)serialize the data. It needs
-  //   two public methods: serialize and deserialize. It defaults to the
-  //   noopSerializer:
-  //
-  //   ~~~~
-  //   var noopSerializer = {
-  //     serialize: function (opcode, value, extras) {
-  //       return { value: value, extras: extras };
-  //     },
-  //     deserialize: function (opcode, value, extras) {
-  //       return { value: value, extras: extras };
-  //     }
-  //   };
-  //   ~~~~
-  //
-  // Or options for the servers including:
-  // * `username` and `password` for fallback SASL authentication credentials.
-  // * `timeout` in seconds to determine failure for operations. Default is 0.5
-  //             seconds.
-  // * 'conntimeout' in seconds to connection failure. Default is twice the value
-  //                 of `timeout`.
-  // * `keepAlive` whether to enable keep-alive functionality. Defaults to false.
-  // * `keepAliveDelay` in seconds to the initial delay before the first keepalive
-  //                    probe is sent on an idle socket. Defaults is 30 seconds.
-  // * `keyToServerHashFunction` a function to map keys to servers, with the signature
-  //                            (serverKeys: string[], key: string): string
-  //                            NOTE: if you need to do some expensive initialization, *please* do it lazily the first time you this function is called with an array of serverKeys, not on every call
+  /**
+   * Creates a new client given an optional config string and optional hash of
+   * options. The config string should be of the form:
+   *
+   *     "[user:pass@]server1[:11211],[user:pass@]server2[:11211],..."
+   *
+   * If the argument is not given, fallback on the `MEMCACHIER_SERVERS` environment
+   * variable, `MEMCACHE_SERVERS` environment variable or `"localhost:11211"`.
+   *
+   * The options hash may contain the options:
+   *
+   * * `retries` - the number of times to retry an operation in lieu of failures
+   * (default 2)
+   * * `expires` - the default expiration in seconds to use (default 0 - never
+   * expire). If `expires` is greater than 30 days (60 x 60 x 24 x 30), it is
+   * treated as a UNIX time (number of seconds since January 1, 1970).
+   * * `logger` - a logger object that responds to `log(string)` method calls.
+   *
+   *   ~~~~
+   *     log(msg1[, msg2[, msg3[...]]])
+   *   ~~~~
+   *
+   *   Defaults to `console`.
+   * * `serializer` - the object which will (de)serialize the data. It needs
+   *   two public methods: serialize and deserialize. It defaults to the
+   *   noopSerializer:
+   *
+   *   ~~~~
+   *   var noopSerializer = {
+   *     serialize: function (opcode, value, extras) {
+   *       return { value: value, extras: extras };
+   *     },
+   *     deserialize: function (opcode, value, extras) {
+   *       return { value: value, extras: extras };
+   *     }
+   *   };
+   *   ~~~~
+   *
+   * Or options for the servers including:
+   * * `username` and `password` for fallback SASL authentication credentials.
+   * * `timeout` in seconds to determine failure for operations. Default is 0.5
+   *             seconds.
+   * * 'conntimeout' in seconds to connection failure. Default is twice the value
+   *                 of `timeout`.
+   * * `keepAlive` whether to enable keep-alive functionality. Defaults to false.
+   * * `keepAliveDelay` in seconds to the initial delay before the first keepalive
+   *                    probe is sent on an idle socket. Defaults is 30 seconds.
+   * * `keyToServerHashFunction` a function to map keys to servers, with the signature
+   *                            (serverKeys: string[], key: string): string
+   *                            NOTE: if you need to do some expensive initialization, *please* do it lazily the first time you this function is called with an array of serverKeys, not on every call
+   */
   static create<Value, Extras>(
     serversStr: string | undefined,
     options: IfBuffer<
