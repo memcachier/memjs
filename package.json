@@ -23,7 +23,7 @@
     "lib": "./lib/memjs"
   },
   "scripts": {
-    "test": "eslint ./src && tsc && tap  --no-coverage -R spec ./lib/test/*.js",
+    "test": "tsc && tap  --no-coverage -R spec ./test/*.js",
     "bench": "tsc && NODE_PATH=lib/memjs/ node bench/memjs.js",
     "bench-timers": "tsc && NODE_PATH=lib/memjs/ node bench/timers.js"
   },
