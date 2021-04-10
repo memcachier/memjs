@@ -8,7 +8,7 @@ import {
   Message,
 } from "./utils";
 
-interface ServerOptions {
+export interface ServerOptions {
   timeout: number;
   keepAlive: boolean;
   keepAliveDelay: number;
@@ -17,19 +17,19 @@ interface ServerOptions {
   password?: string;
 }
 
-type Seq = string;
+type Seq = number;
 
-interface OnConnectCallback {
+export interface OnConnectCallback {
   (socket: net.Socket): void;
 }
 
-interface OnResponseCallback {
+export interface OnResponseCallback {
   (message: Message): void;
   quiet?: boolean;
 }
 
-interface OnErrorCallback {
-  (error: Error | string): void;
+export interface OnErrorCallback {
+  (error: Error): void;
 }
 
 export class Server extends events.EventEmitter {
@@ -50,7 +50,7 @@ export class Server extends events.EventEmitter {
 
   constructor(
     host: string,
-    port: number,
+    port: string | number,
     username?: string,
     password?: string,
     options?: Partial<ServerOptions>
@@ -58,7 +58,7 @@ export class Server extends events.EventEmitter {
     super();
     this.responseBuffer = Buffer.from([]);
     this.host = host;
-    this.port = port;
+    this.port = parseInt(port.toString(), 10);
     this.connected = false;
     this.timeoutSet = false;
     this.connectCallbacks = [];
@@ -115,7 +115,7 @@ export class Server extends events.EventEmitter {
     this.errorCallbacks[seq] = func;
   }
 
-  error(err: Error | string) {
+  error(err: Error) {
     var errcalls = this.errorCallbacks;
     this.connectCallbacks = [];
     this.responseCallbacks = {};
@@ -156,7 +156,7 @@ export class Server extends events.EventEmitter {
       if (response.header.opcode === 0x20) {
         this.saslAuth();
       } else if (response.header.status === 0x20) {
-        this.error("Memcached server authentication failed!");
+        this.error(new Error("Memcached server authentication failed!"));
       } else if (response.header.opcode === 0x21) {
         this.emit("authenticated");
       } else {
@@ -173,38 +173,40 @@ export class Server extends events.EventEmitter {
     if (!self._socket) {
       // CASE 1: completely new socket
       self.connected = false;
-      self._socket = net.connect(this.port, this.host, function (
-        this: net.Socket
-      ) {
-        // SASL authentication handler
-        self.once("authenticated", function () {
-          if (self._socket) {
-            const socket = self._socket;
-            self.connected = true;
-            // cancel connection timeout
-            self._socket.setTimeout(0);
-            self.timeoutSet = false;
-            // run actual request(s)
-            go(self._socket);
-            self.connectCallbacks.forEach(function (cb) {
-              cb(socket);
-            });
-            self.connectCallbacks = [];
+      self._socket = net.connect(
+        this.port,
+        this.host,
+        function (this: net.Socket) {
+          // SASL authentication handler
+          self.once("authenticated", function () {
+            if (self._socket) {
+              const socket = self._socket;
+              self.connected = true;
+              // cancel connection timeout
+              self._socket.setTimeout(0);
+              self.timeoutSet = false;
+              // run actual request(s)
+              go(self._socket);
+              self.connectCallbacks.forEach(function (cb) {
+                cb(socket);
+              });
+              self.connectCallbacks = [];
+            }
+          });
+
+          // setup response handler
+          this.on("data", function (dataBuf) {
+            self.responseHandler(dataBuf);
+          });
+
+          // kick of SASL if needed
+          if (self.username && self.password) {
+            self.listSasl();
+          } else {
+            self.emit("authenticated");
           }
-        });
-
-        // setup response handler
-        this.on("data", function (dataBuf) {
-          self.responseHandler(dataBuf);
-        });
-
-        // kick of SASL if needed
-        if (self.username && self.password) {
-          self.listSasl();
-        } else {
-          self.emit("authenticated");
         }
-      });
+      );
 
       // setup error handler
       self._socket.on("error", function (error) {
@@ -221,16 +223,17 @@ export class Server extends events.EventEmitter {
 
       // setup connection timeout handler
       self.timeoutSet = true;
-      self._socket.setTimeout(self.options.conntimeout * 1000, function (
-        this: net.Socket
-      ) {
-        self.timeoutSet = false;
-        if (!self.connected) {
-          this.end();
-          self._socket = undefined;
-          self.error(new Error("socket timed out connecting to server."));
+      self._socket.setTimeout(
+        self.options.conntimeout * 1000,
+        function (this: net.Socket) {
+          self.timeoutSet = false;
+          if (!self.connected) {
+            this.end();
+            self._socket = undefined;
+            self.error(new Error("socket timed out connecting to server."));
+          }
         }
-      });
+      );
 
       // use TCP keep-alive
       self._socket.setKeepAlive(

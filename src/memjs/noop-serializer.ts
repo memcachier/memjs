@@ -1,17 +1,22 @@
 import { OP } from "./constants";
 import { MaybeBuffer } from "./utils";
 
-interface Serializer<Value, Extras> {
+export interface SerializerResult<Value, Extras> {
+  value: Value;
+  extras: Extras;
+}
+
+export interface Serializer<Value, Extras> {
   serialize(
     opcode: OP,
     value: Value,
     extras: Extras
-  ): { value: MaybeBuffer; extras: MaybeBuffer };
+  ): SerializerResult<MaybeBuffer, MaybeBuffer>;
   deserialize(
     opcode: OP,
     value: MaybeBuffer,
     extras: MaybeBuffer
-  ): { value: Value; extras: Extras };
+  ): SerializerResult<Value, Extras>;
 }
 
 export const noopSerializer: Serializer<MaybeBuffer, MaybeBuffer> = {

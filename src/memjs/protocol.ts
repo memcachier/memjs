@@ -1,5 +1,7 @@
 /** MemJS Memcache binary protocol errors */
+export const UNKNOWN_ERROR = -1;
 export const errors: { [key: number]: string } = {};
+errors[UNKNOWN_ERROR] = "Unknown error";
 errors[0x0000] = "No error";
 errors[0x0001] = "Key not found";
 errors[0x0002] = "Key exists";
