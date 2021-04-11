@@ -27,8 +27,8 @@ import * as Utils from "./utils";
 import * as Header from "./header";
 
 function defaultKeyToServerHashFunction(servers: string[], key: string) {
-  var total = servers.length;
-  var index = total > 1 ? hashCode(key) % total : 0;
+  const total = servers.length;
+  const index = total > 1 ? hashCode(key) % total : 0;
   return servers[index];
 }
 
@@ -66,7 +66,7 @@ type IfBuffer<Value, Extras, IsBuffer, NotBuffer> = Value extends Buffer
     : NotBuffer
   : NotBuffer;
 
-type GivenClientOptions<Value, Extras> = Partial<BaseClientOptions> &
+export type GivenClientOptions<Value, Extras> = Partial<BaseClientOptions> &
   IfBuffer<
     Value,
     Extras,
@@ -98,7 +98,7 @@ class Client<Value, Extras> {
     this.serializer = this.options.serializer || (noopSerializer as any);
 
     // Store a mapping from hostport -> server so we can quickly get a server object from the serverKey returned by the hashing function
-    var serverMap: { [hostport: string]: Server } = {};
+    const serverMap: { [hostport: string]: Server } = {};
     this.servers.forEach(function (server) {
       serverMap[server.hostportString()] = server;
     });
@@ -136,7 +136,7 @@ class Client<Value, Extras> {
    *   noopSerializer:
    *
    *   ~~~~
-   *   var noopSerializer = {
+   *   const noopSerializer = {
    *     serialize: function (opcode, value, extras) {
    *       return { value: value, extras: extras };
    *     },
@@ -173,11 +173,11 @@ class Client<Value, Extras> {
       process.env.MEMCACHIER_SERVERS ||
       process.env.MEMCACHE_SERVERS ||
       "localhost:11211";
-    var serverUris = serversStr.split(",");
-    var servers = serverUris.map(function (uri) {
-      var uriParts = uri.split("@");
-      var hostPort = uriParts[uriParts.length - 1].split(":");
-      var userPass = (uriParts[uriParts.length - 2] || "").split(":");
+    const serverUris = serversStr.split(",");
+    const servers = serverUris.map(function (uri) {
+      const uriParts = uri.split("@");
+      const hostPort = uriParts[uriParts.length - 1].split(":");
+      const userPass = (uriParts[uriParts.length - 2] || "").split(":");
       return new Server(
         hostPort[0],
         parseInt(hostPort[1] || "11211", 10),
@@ -256,18 +256,17 @@ class Client<Value, Extras> {
       flags: Extras | null
     ) => void
   ): Promise<{ value: Value | null; flags: Extras | null }> | void {
-    var self = this;
     if (callback === undefined) {
-      return promisify(function (callback) {
-        self.get(key, function (err, value, flags) {
+      return promisify((callback) => {
+        this.get(key, function (err, value, flags) {
           callback(err, { value: value, flags: flags });
         });
       });
     }
-    var logger = this.options.logger;
+    const logger = this.options.logger;
     this.incrSeq();
-    var request = makeRequestBuffer(constants.OP_GET, key, "", "", this.seq);
-    this.perform(key, request, this.seq, function (err, response) {
+    const request = makeRequestBuffer(constants.OP_GET, key, "", "", this.seq);
+    this.perform(key, request, this.seq, (err, response) => {
       if (err) {
         if (callback) {
           callback(err, null, null);
@@ -277,7 +276,7 @@ class Client<Value, Extras> {
       switch (response!.header.status) {
         case constants.RESPONSE_STATUS_SUCCCESS:
           if (callback) {
-            var deserialized = self.serializer.deserialize(
+            const deserialized = this.serializer.deserialize(
               response!.header.opcode,
               response!.val,
               response!.extras
@@ -291,7 +290,7 @@ class Client<Value, Extras> {
           }
           break;
         default:
-          var errorMessage =
+          const errorMessage =
             "MemJS GET: " + errors[response!.header.status || UNKNOWN_ERROR];
           logger.log(errorMessage);
           if (callback) {
@@ -307,17 +306,17 @@ class Client<Value, Extras> {
    */
   _buildGetMultiRequest(keys: string[]) {
     // start at 24 for the no-op command at the end
-    var requestSize = 24;
-    for (var keyIdx in keys) {
+    let requestSize = 24;
+    for (const keyIdx in keys) {
       requestSize += Buffer.byteLength(keys[keyIdx], "utf8") + 24;
     }
 
-    var request = Buffer.alloc(requestSize);
+    const request = Buffer.alloc(requestSize);
     request.fill(0);
 
-    var bytesWritten = 0;
-    for (keyIdx in keys) {
-      var key = keys[keyIdx];
+    let bytesWritten = 0;
+    for (const keyIdx in keys) {
+      const key = keys[keyIdx];
       bytesWritten += copyIntoRequestBuffer(
         constants.OP_GETKQ,
         key,
@@ -352,17 +351,15 @@ class Client<Value, Extras> {
       flags: Extras | null
     ) => void
   ) {
-    var self = this;
-
-    var responseMap: {
+    const responseMap: {
       [server: string]: Value | null;
     } = {};
 
-    var handle: OnResponseCallback = function (response) {
+    const handle: OnResponseCallback = (response) => {
       switch (response.header.status) {
         case constants.RESPONSE_STATUS_SUCCCESS:
           if (callback) {
-            var deserialized = self.serializer.deserialize(
+            const deserialized = this.serializer.deserialize(
               response.header.opcode,
               response.val,
               response.extras
@@ -374,7 +371,7 @@ class Client<Value, Extras> {
               handle.quiet = false;
               callback(null, responseMap, deserialized.extras);
             } else {
-              var key = response.key.toString();
+              const key = response.key.toString();
               responseMap[key] = deserialized.value;
             }
           }
@@ -385,9 +382,9 @@ class Client<Value, Extras> {
           }
           break;
         default:
-          var errorMessage =
+          const errorMessage =
             "MemJS GET: " + errors[response.header.status || UNKNOWN_ERROR];
-          self.options.logger.log(errorMessage);
+          this.options.logger.log(errorMessage);
           if (callback) {
             callback(new Error(errorMessage), null, null);
           }
@@ -397,7 +394,7 @@ class Client<Value, Extras> {
     // after the first response. Logic in server.js.
     handle.quiet = true;
 
-    var request = this._buildGetMultiRequest(keys);
+    const request = this._buildGetMultiRequest(keys);
     serv.onResponse(this.seq, handle);
     serv.onError(this.seq, function (err) {
       if (callback) {
@@ -445,30 +442,29 @@ class Client<Value, Extras> {
     values: { [K in Keys]?: Value | null } | null;
     flags: Extras | null;
   }> | void {
-    var self = this;
     if (callback === undefined) {
-      return promisify(function (callback) {
-        self.getMulti(keys, function (err, values, flags) {
+      return promisify((callback) => {
+        this.getMulti(keys, function (err, values, flags) {
           callback(err, { values: values, flags: flags });
         });
       });
     }
 
-    var serverKeytoLookupKeys: {
+    const serverKeytoLookupKeys: {
       [serverKey: string]: string[];
     } = {};
-    keys.forEach(function (lookupKey) {
-      var serverKey = self.lookupKeyToServerKey(lookupKey);
+    keys.forEach((lookupKey) => {
+      const serverKey = this.lookupKeyToServerKey(lookupKey);
       if (!serverKeytoLookupKeys[serverKey]) {
         serverKeytoLookupKeys[serverKey] = [];
       }
       serverKeytoLookupKeys[serverKey].push(lookupKey);
     });
 
-    var usedServerKeys = Object.keys(serverKeytoLookupKeys);
-    var outstandingCalls = usedServerKeys.length;
-    var recordMap = {};
-    var hadError = false;
+    const usedServerKeys = Object.keys(serverKeytoLookupKeys);
+    let outstandingCalls = usedServerKeys.length;
+    const recordMap = {};
+    let hadError = false;
     function latchCallback(
       err: Error | null,
       values: { [key: string]: Value | null } | null,
@@ -491,9 +487,9 @@ class Client<Value, Extras> {
       }
     }
 
-    for (var serverKeyIndex in usedServerKeys) {
-      var serverKey = usedServerKeys[serverKeyIndex];
-      var server = this.serverKeyToServer(serverKey);
+    for (const serverKeyIndex in usedServerKeys) {
+      const serverKey = usedServerKeys[serverKeyIndex];
+      const server = this.serverKeyToServer(serverKey);
       this._getMultiToServer(
         server,
         serverKeytoLookupKeys[serverKey],
@@ -527,27 +523,19 @@ class Client<Value, Extras> {
   set(
     key: string,
     value: Value,
-    callback: (error: Error | null, success: boolean | null) => void
-  ): void;
-  set(
-    key: string,
-    value: Value,
     options: { expires?: number },
     callback: (error: Error | null, success: boolean | null) => void
   ): void;
   set(
     key: string,
     value: Value,
-    options?:
-      | { expires?: number }
-      | ((error: Error | null, success: boolean | null) => void),
+    options: { expires?: number },
     callback?: (error: Error | null, success: boolean | null) => void
   ): Promise<boolean | null> | void {
     if (callback === undefined && typeof options !== "function") {
-      var self = this;
       if (!options) options = {};
-      return promisify(function (callback) {
-        self.set(
+      return promisify((callback) => {
+        this.set(
           key,
           value,
           options as { expires?: number },
@@ -557,30 +545,19 @@ class Client<Value, Extras> {
         );
       });
     }
-    var logger = this.options.logger;
-    var expires;
-    if (typeof options === "function" || typeof callback === "number") {
-      // OLD: function(key, value, callback, expires)
-      logger.log("MemJS SET: using deprecated call - arguments have changed");
-      expires = callback;
-      callback = options as (
-        error: Error | null,
-        success: boolean | null
-      ) => void;
-      options = {};
-    }
 
-    logger = this.options.logger;
-    expires = (options || {}).expires;
+    const logger = this.options.logger
+    const expires = (options || {}).expires;
+
 
     // TODO: support flags, support version (CAS)
     this.incrSeq();
-    var expiration = makeExpiration(expires || this.options.expires);
-    var extras = Buffer.concat([Buffer.from("00000000", "hex"), expiration]);
+    const expiration = makeExpiration(expires || this.options.expires);
+    const extras = Buffer.concat([Buffer.from("00000000", "hex"), expiration]);
 
-    var opcode: constants.OP = 1;
-    var serialized = this.serializer.serialize(opcode, value, extras);
-    var request = makeRequestBuffer(
+    const opcode: constants.OP = 1;
+    const serialized = this.serializer.serialize(opcode, value, extras);
+    const request = makeRequestBuffer(
       opcode,
       key,
       serialized.extras,
@@ -601,7 +578,7 @@ class Client<Value, Extras> {
           }
           break;
         default:
-          var errorMessage =
+          const errorMessage =
             "MemJS SET: " + errors[response!.header.status || UNKNOWN_ERROR];
           logger.log(errorMessage);
           if (callback) {
@@ -637,27 +614,19 @@ class Client<Value, Extras> {
   add(
     key: string,
     value: Value,
-    callback: (error: Error | null, success: boolean | null) => void
-  ): void;
-  add(
-    key: string,
-    value: Value,
     options: { expires?: number },
     callback: (error: Error | null, success: boolean | null) => void
   ): void;
   add(
     key: string,
     value: Value,
-    options?:
-      | { expires?: number }
-      | ((error: Error | null, success: boolean | null) => void),
+    options?: { expires?: number },
     callback?: (error: Error | null, success: boolean | null) => void
   ): Promise<boolean | null> | void {
     if (callback === undefined && options !== "function") {
-      var self = this;
       if (!options) options = {};
-      return promisify(function (callback) {
-        self.add(
+      return promisify((callback) => {
+        this.add(
           key,
           value,
           options as { expires?: number },
@@ -667,27 +636,16 @@ class Client<Value, Extras> {
         );
       });
     }
-    var logger = this.options.logger;
-    var expires;
-    if (typeof options === "function") {
-      // OLD: function(key, value, callback, expires)
-      logger.log("MemJS ADD: using deprecated call - arguments have changed");
-      expires = callback;
-      callback = options;
-      options = {};
-    }
-
-    logger = this.options.logger;
-    expires = (options || {}).expires;
+    const logger = this.options.logger;
 
     // TODO: support flags, support version (CAS)
     this.incrSeq();
-    var expiration = makeExpiration(expires || this.options.expires);
-    var extras = Buffer.concat([Buffer.from("00000000", "hex"), expiration]);
+    const expiration = makeExpiration((options || {}).expires || this.options.expires);
+    const extras = Buffer.concat([Buffer.from("00000000", "hex"), expiration]);
 
-    var opcode: constants.OP = 2;
-    var serialized = this.serializer.serialize(opcode, value, extras);
-    var request = makeRequestBuffer(
+    const opcode: constants.OP = 2;
+    const serialized = this.serializer.serialize(opcode, value, extras);
+    const request = makeRequestBuffer(
       opcode,
       key,
       serialized.extras,
@@ -713,7 +671,7 @@ class Client<Value, Extras> {
           }
           break;
         default:
-          var errorMessage =
+          const errorMessage =
             "MemJS ADD: " + errors[response!.header.status || UNKNOWN_ERROR];
           logger.log(errorMessage, false);
           if (callback) {
@@ -744,32 +702,13 @@ class Client<Value, Extras> {
   replace(
     key: string,
     value: Value,
-    options?: { expires?: number }
-  ): Promise<boolean | null>;
-  replace(
-    key: string,
-    value: Value,
-    callback: (error: Error | null, success: boolean | null) => void
-  ): void;
-  replace(
-    key: string,
-    value: Value,
-    options: { expires?: number },
-    callback: (error: Error | null, success: boolean | null) => void
-  ): void;
-  replace(
-    key: string,
-    value: Value,
-    options?:
-      | { expires?: number }
-      | ((error: Error | null, success: boolean | null) => void),
+    options?: { expires?: number },
     callback?: (error: Error | null, success: boolean | null) => void
   ): Promise<boolean | null> | void {
     if (callback === undefined && options !== "function") {
-      var self = this;
       if (!options) options = {};
-      return promisify(function (callback) {
-        self.replace(
+      return promisify((callback) => {
+        this.replace(
           key,
           value,
           options as { expires?: number },
@@ -779,29 +718,16 @@ class Client<Value, Extras> {
         );
       });
     }
-    var logger = this.options.logger;
-    var expires;
-    if (typeof options === "function") {
-      // OLD: function(key, value, callback, expires)
-      logger.log(
-        "MemJS REPLACE: using deprecated call - arguments have changed"
-      );
-      expires = callback;
-      callback = options;
-      options = {};
-    }
-
-    logger = this.options.logger;
-    expires = (options || {}).expires;
+    const logger = this.options.logger;
 
     // TODO: support flags, support version (CAS)
     this.incrSeq();
-    var expiration = makeExpiration(expires || this.options.expires);
-    var extras = Buffer.concat([Buffer.from("00000000", "hex"), expiration]);
+    const expiration = makeExpiration((options || {}).expires || this.options.expires);
+    const extras = Buffer.concat([Buffer.from("00000000", "hex"), expiration]);
 
-    var opcode: constants.OP = 3;
-    var serialized = this.serializer.serialize(opcode, value, extras);
-    var request = makeRequestBuffer(
+    const opcode: constants.OP = 3;
+    const serialized = this.serializer.serialize(opcode, value, extras);
+    const request = makeRequestBuffer(
       opcode,
       key,
       serialized.extras,
@@ -827,7 +753,7 @@ class Client<Value, Extras> {
           }
           break;
         default:
-          var errorMessage =
+          const errorMessage =
             "MemJS REPLACE: " +
             errors[response!.header.status || UNKNOWN_ERROR];
           logger.log(errorMessage, false);
@@ -860,17 +786,16 @@ class Client<Value, Extras> {
     callback?: (err: Error | null, success: boolean | null) => void
   ): Promise<boolean> | void {
     if (callback === undefined) {
-      var self = this;
-      return promisify(function (callback) {
-        self.delete(key, function (err, success) {
+      return promisify((callback) => {
+        this.delete(key, function (err, success) {
           callback(err, Boolean(success));
         });
       });
     }
     // TODO: Support version (CAS)
-    var logger = this.options.logger;
+    const logger = this.options.logger;
     this.incrSeq();
-    var request = makeRequestBuffer(4, key, "", "", this.seq);
+    const request = makeRequestBuffer(4, key, "", "", this.seq);
     this.perform(key, request, this.seq, function (err, response) {
       if (err) {
         if (callback) {
@@ -890,7 +815,7 @@ class Client<Value, Extras> {
           }
           break;
         default:
-          var errorMessage =
+          const errorMessage =
             "MemJS DELETE: " + errors[response!.header.status || UNKNOWN_ERROR];
           logger.log(errorMessage, false);
           if (callback) {
@@ -944,38 +869,21 @@ class Client<Value, Extras> {
     ) => void
   ): Promise<{ value: number | null; success: boolean | null }> | void {
     if (callback === undefined && options !== "function") {
-      var self = this;
-      return promisify(function (callback) {
+      return promisify((callback) => {
         if (!options) options = {};
-        self.increment(key, amount, options, function (err, success, value) {
+        this.increment(key, amount, options, function (err, success, value) {
           callback(err, { success: success, value: value || null });
         });
       });
     }
-    var logger = this.options.logger;
-    var initial;
-    var expires;
-    if (typeof options === "function") {
-      // OLD: function(key, amount, callback, expires, initial)
-      logger.log(
-        "MemJS INCREMENT: using deprecated call - arguments have changed"
-      );
-      initial = arguments[4];
-      expires = callback;
-      callback = options;
-      options = {};
-    }
-
-    logger = this.options.logger;
-    initial = options.initial;
-    expires = options.expires;
+    const logger = this.options.logger;
 
     // TODO: support version (CAS)
     this.incrSeq();
-    initial = initial || 0;
-    expires = expires || this.options.expires;
-    var extras = makeAmountInitialAndExpiration(amount, initial, expires);
-    var request = makeRequestBuffer(5, key, extras, "", this.seq);
+    const initial = options.initial || 0;
+    const expires = options.expires || this.options.expires;
+    const extras = makeAmountInitialAndExpiration(amount, initial, expires);
+    const request = makeRequestBuffer(5, key, extras, "", this.seq);
     this.perform(key, request, this.seq, function (err, response) {
       if (err) {
         if (callback) {
@@ -985,7 +893,7 @@ class Client<Value, Extras> {
       }
       switch (response!.header.status) {
         case constants.RESPONSE_STATUS_SUCCCESS:
-          var bufInt =
+          const bufInt =
             (response!.val.readUInt32BE(0) << 8) +
             response!.val.readUInt32BE(4);
           if (callback) {
@@ -993,7 +901,7 @@ class Client<Value, Extras> {
           }
           break;
         default:
-          var errorMessage =
+          const errorMessage =
             "MemJS INCREMENT: " +
             errors[response!.header.status || UNKNOWN_ERROR];
           logger.log(errorMessage);
@@ -1042,38 +950,20 @@ class Client<Value, Extras> {
     ) => void
   ): Promise<{ value: number | null; success: boolean | null }> | void {
     if (callback === undefined && options !== "function") {
-      var self = this;
-      return promisify(function (callback) {
-        self.decrement(key, amount, options, function (err, success, value) {
+      return promisify((callback) => {
+        this.decrement(key, amount, options, function (err, success, value) {
           callback(err, { success: success, value: value || null });
         });
       });
     }
     // TODO: support version (CAS)
-    var logger = this.options.logger;
-    var initial;
-    var expires;
-    if (typeof options === "function") {
-      // OLD: function(key, amount, callback, expires, initial)
-      logger.log(
-        "MemJS DECREMENT: using deprecated call - arguments have changed"
-      );
-      initial = arguments[4];
-      expires = callback;
-      callback = options;
-      options = {};
-    }
-
-    // TODO: support version (CAS)
-    logger = this.options.logger;
-    initial = options.initial;
-    expires = options.expires;
+    const logger = this.options.logger;
 
     this.incrSeq();
-    initial = initial || 0;
-    expires = expires || this.options.expires;
-    var extras = makeAmountInitialAndExpiration(amount, initial, expires);
-    var request = makeRequestBuffer(6, key, extras, "", this.seq);
+    const initial = options.initial || 0;
+    const expires = options.expires || this.options.expires;
+    const extras = makeAmountInitialAndExpiration(amount, initial, expires);
+    const request = makeRequestBuffer(6, key, extras, "", this.seq);
     this.perform(key, request, this.seq, function (err, response) {
       if (err) {
         if (callback) {
@@ -1083,7 +973,7 @@ class Client<Value, Extras> {
       }
       switch (response!.header.status) {
         case constants.RESPONSE_STATUS_SUCCCESS:
-          var bufInt =
+          const bufInt =
             (response!.val.readUInt32BE(0) << 8) +
             response!.val.readUInt32BE(4);
           if (callback) {
@@ -1091,7 +981,7 @@ class Client<Value, Extras> {
           }
           break;
         default:
-          var errorMessage =
+          const errorMessage =
             "MemJS DECREMENT: " +
             errors[response!.header.status || UNKNOWN_ERROR];
           logger.log(errorMessage);
@@ -1126,19 +1016,18 @@ class Client<Value, Extras> {
     callback?: (err: Error | null, success: boolean | null) => void
   ) {
     if (callback === undefined) {
-      var self = this;
-      return promisify(function (callback) {
-        self.append(key, value, function (err, success) {
+      return promisify((callback) => {
+        this.append(key, value, function (err, success) {
           callback(err, success);
         });
       });
     }
     // TODO: support version (CAS)
-    var logger = this.options.logger;
+    const logger = this.options.logger;
     this.incrSeq();
-    var opcode: constants.OP = 0x0e;
-    var serialized = this.serializer.serialize(opcode, value, "");
-    var request = makeRequestBuffer(
+    const opcode: constants.OP = 0x0e;
+    const serialized = this.serializer.serialize(opcode, value, "");
+    const request = makeRequestBuffer(
       opcode,
       key,
       serialized.extras,
@@ -1164,7 +1053,7 @@ class Client<Value, Extras> {
           }
           break;
         default:
-          var errorMessage =
+          const errorMessage =
             "MemJS APPEND: " + errors[response!.header.status || UNKNOWN_ERROR];
           logger.log(errorMessage);
           if (callback) {
@@ -1198,20 +1087,19 @@ class Client<Value, Extras> {
     callback?: (err: Error | null, success: boolean | null) => void
   ) {
     if (callback === undefined) {
-      var self = this;
-      return promisify(function (callback) {
-        self.prepend(key, value, function (err, success) {
+      return promisify((callback) => {
+        this.prepend(key, value, function (err, success) {
           callback(err, success);
         });
       });
     }
     // TODO: support version (CAS)
-    var logger = this.options.logger;
+    const logger = this.options.logger;
     this.incrSeq();
 
-    var opcode: constants.OP = constants.OP_PREPEND; /* WAS WRONG IN ORIGINAL */
-    var serialized = this.serializer.serialize(opcode, value, "");
-    var request = makeRequestBuffer(
+    const opcode: constants.OP = constants.OP_PREPEND; /* WAS WRONG IN ORIGINAL */
+    const serialized = this.serializer.serialize(opcode, value, "");
+    const request = makeRequestBuffer(
       opcode,
       key,
       serialized.extras,
@@ -1237,7 +1125,7 @@ class Client<Value, Extras> {
           }
           break;
         default:
-          var errorMessage =
+          const errorMessage =
             "MemJS PREPEND: " +
             errors[response!.header.status || UNKNOWN_ERROR];
           logger.log(errorMessage);
@@ -1272,18 +1160,17 @@ class Client<Value, Extras> {
     callback?: (err: Error | null, success: boolean | null) => void
   ): Promise<boolean> | void {
     if (callback === undefined) {
-      var self = this;
-      return promisify(function (callback) {
-        self.touch(key, expires, function (err, success) {
+      return promisify((callback) => {
+        this.touch(key, expires, function (err, success) {
           callback(err, Boolean(success));
         });
       });
     }
     // TODO: support version (CAS)
-    var logger = this.options.logger;
+    const logger = this.options.logger;
     this.incrSeq();
-    var extras = makeExpiration(expires || this.options.expires);
-    var request = makeRequestBuffer(0x1c, key, extras, "", this.seq);
+    const extras = makeExpiration(expires || this.options.expires);
+    const request = makeRequestBuffer(0x1c, key, extras, "", this.seq);
     this.perform(key, request, this.seq, function (err, response) {
       if (err) {
         if (callback) {
@@ -1303,7 +1190,7 @@ class Client<Value, Extras> {
           }
           break;
         default:
-          var errorMessage =
+          const errorMessage =
             "MemJS TOUCH: " + errors[response!.header.status || UNKNOWN_ERROR];
           logger.log(errorMessage);
           if (callback) {
@@ -1339,22 +1226,20 @@ class Client<Value, Extras> {
     ) => void
   ) {
     if (callback === undefined) {
-      var self = this;
-      return promisify(function (callback) {
-        self.flush(function (err, results) {
+      return promisify((callback) => {
+        this.flush(function (err, results) {
           callback(err, results);
         });
       });
     }
     // TODO: support expiration
     this.incrSeq();
-    var request = makeRequestBuffer(0x08, "", "", "", this.seq);
-    var count = this.servers.length;
-    var result: Record<string, boolean | Error> = {};
-    var lastErr: Error | null = null;
-    var i;
+    const request = makeRequestBuffer(0x08, "", "", "", this.seq);
+    let count = this.servers.length;
+    const result: Record<string, boolean | Error> = {};
+    let lastErr: Error | null = null;
 
-    var handleFlush = function (seq: number, serv: Server) {
+    const handleFlush = function (seq: number, serv: Server) {
       serv.onResponse(seq, function (/* response */) {
         count -= 1;
         result[serv.hostportString()] = true;
@@ -1373,7 +1258,7 @@ class Client<Value, Extras> {
       serv.write(request);
     };
 
-    for (i = 0; i < this.servers.length; i++) {
+    for (let i = 0; i < this.servers.length; i++) {
       handleFlush(this.seq, this.servers[i]);
     }
   }
@@ -1399,14 +1284,13 @@ class Client<Value, Extras> {
       stats: Record<string, string> | null
     ) => void
   ): void {
-    var logger = this.options.logger;
+    const logger = this.options.logger;
     this.incrSeq();
-    var request = makeRequestBuffer(0x10, key, "", "", this.seq);
-    var i;
+    const request = makeRequestBuffer(0x10, key, "", "", this.seq);
 
-    var handleStats = function (seq: number, serv: Server) {
-      var result: Record<string, string> = {};
-      var handle: OnResponseCallback = function (response) {
+    const handleStats = function (seq: number, serv: Server) {
+      const result: Record<string, string> = {};
+      const handle: OnResponseCallback = function (response) {
         // end of stat responses
         if (response.header.totalBodyLength === 0) {
           if (callback) {
@@ -1420,7 +1304,7 @@ class Client<Value, Extras> {
             result[response.key.toString()] = response.val.toString();
             break;
           default:
-            var errorMessage =
+            const errorMessage =
               "MemJS STATS (" +
               key +
               "): " +
@@ -1442,7 +1326,7 @@ class Client<Value, Extras> {
       serv.write(request);
     };
 
-    for (i = 0; i < this.servers.length; i++) {
+    for (let i = 0; i < this.servers.length; i++) {
       handleStats(this.seq, this.servers[i]);
     }
   }
@@ -1505,11 +1389,10 @@ class Client<Value, Extras> {
     this.incrSeq();
     // TODO: Nicer perhaps to do QUITQ (0x17) but need a new callback for when
     // write is done.
-    var request = makeRequestBuffer(0x07, "", "", "", this.seq); // QUIT
-    var serv;
-    var i;
+    const request = makeRequestBuffer(0x07, "", "", "", this.seq); // QUIT
+    let serv;
 
-    var handleQuit = function (seq: number, serv: Server) {
+    const handleQuit = function (seq: number, serv: Server) {
       serv.onResponse(seq, function (/* response */) {
         serv.close();
       });
@@ -1519,7 +1402,7 @@ class Client<Value, Extras> {
       serv.write(request);
     };
 
-    for (i = 0; i < this.servers.length; i++) {
+    for (let i = 0; i < this.servers.length; i++) {
       serv = this.servers[i];
       handleQuit(this.seq, serv);
     }
@@ -1544,20 +1427,19 @@ class Client<Value, Extras> {
       extras: Extras | null
     ) => void
   ): Promise<{ value: Value | null; flags: Extras | null }> | void {
-    var self = this;
     if (callback === undefined) {
-      return promisify(function (callback) {
-        self._version(server, function (err, value, flags) {
+      return promisify((callback) => {
+        this._version(server, function (err, value, flags) {
           callback(err, { value: value, flags: flags });
         });
       });
     }
 
     this.incrSeq();
-    var request = makeRequestBuffer(constants.OP_VERSION, "", "", "", this.seq);
-    var logger = this.options.logger;
+    const request = makeRequestBuffer(constants.OP_VERSION, "", "", "", this.seq);
+    const logger = this.options.logger;
 
-    this.performOnServer(server, request, this.seq, function (err, response) {
+    this.performOnServer(server, request, this.seq, (err, response) => {
       if (err) {
         if (callback) {
           callback(err, null, null);
@@ -1569,7 +1451,7 @@ class Client<Value, Extras> {
         case constants.RESPONSE_STATUS_SUCCCESS:
           /* TODO: this is bugged, we should't use the deserializer here, since version always returns a version string.
              The deserializer should only be used on user key data. */
-          var deserialized = self.serializer.deserialize(
+          const deserialized = this.serializer.deserialize(
             response!.header.opcode,
             response!.val,
             response!.extras
@@ -1577,7 +1459,7 @@ class Client<Value, Extras> {
           callback(null, deserialized.value, deserialized.extras);
           break;
         default:
-          var errorMessage =
+          const errorMessage =
             "MemJS VERSION: " +
             errors[(response!.header.status, UNKNOWN_ERROR)];
           logger.log(errorMessage);
@@ -1683,8 +1565,7 @@ class Client<Value, Extras> {
    * Closes (abruptly) connections to all the servers.
    */
   close() {
-    var i;
-    for (i = 0; i < this.servers.length; i++) {
+    for (let i = 0; i < this.servers.length; i++) {
       this.servers[i].close();
     }
   }
@@ -1706,9 +1587,9 @@ class Client<Value, Extras> {
     callback: ResponseOrErrorCallback,
     retries?: number
   ) {
-    var serverKey = this.lookupKeyToServerKey(key);
+    const serverKey = this.lookupKeyToServerKey(key);
 
-    var server = this.serverKeyToServer(serverKey);
+    const server = this.serverKeyToServer(serverKey);
 
     if (!server) {
       if (callback) {
@@ -1726,20 +1607,20 @@ class Client<Value, Extras> {
     callback: ResponseOrErrorCallback,
     retries: number = 0
   ) {
-    var _this = this;
+    const _this = this;
 
     retries = retries || this.options.retries;
-    var origRetries = this.options.retries;
-    var logger = this.options.logger;
-    var retry_delay = this.options.retry_delay;
+    const origRetries = this.options.retries;
+    const logger = this.options.logger;
+    const retry_delay = this.options.retry_delay;
 
-    var responseHandler: OnResponseCallback = function (response) {
+    const responseHandler: OnResponseCallback = function (response) {
       if (callback) {
         callback(null, response);
       }
     };
 
-    var errorHandler: OnErrorCallback = function (error) {
+    const errorHandler: OnErrorCallback = function (error) {
       if (--retries > 0) {
         // Wait for retry_delay
         setTimeout(function () {

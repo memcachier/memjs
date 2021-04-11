@@ -23,12 +23,13 @@
     "lib": "./lib/memjs"
   },
   "scripts": {
-    "test": "tsc && tap  --no-coverage -R spec ./test/*.js",
+    "test": "tsc && tap  --no-coverage -R spec ./test/*.js ./test/*.ts",
     "bench": "tsc && NODE_PATH=lib/memjs/ node bench/memjs.js",
     "bench-timers": "tsc && NODE_PATH=lib/memjs/ node bench/timers.js"
   },
   "devDependencies": {
     "@types/node": "12.20.7",
+    "@types/tap": "^14.10.3",
     "benchmark": "^2.1.4",
     "docco": "^0.8.0",
     "eslint": "^7.23.0",

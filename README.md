@@ -65,8 +65,8 @@ Environment variables are only used as a fallback for explicit parameters.
 
 You can start using MemJS immediately from the node console:
 
-    $ var memjs = require('memjs')
-    $ var client = memjs.Client.create()
+    $ const memjs = require('memjs')
+    $ const client = memjs.Client.create()
     $ client.get('hello', function(err, val) { console.log(val); })
 
 If callbacks are not specified, the command calls return promises.

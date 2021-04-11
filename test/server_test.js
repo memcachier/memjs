@@ -1,15 +1,15 @@
-var test = require('tap').test;
-var MemJS = require('../');
-var makeRequestBuffer = require('../lib/memjs/utils').makeRequestBuffer;
+const test = require('tap').test;
+const MemJS = require('../');
+const makeRequestBuffer = require('../lib/memjs/utils').makeRequestBuffer;
 
 test('AuthListMechanisms', function(t) {
-  var expectedBuf = makeRequestBuffer(0x20, '', '', '');
-  var dummySocket = {
+  const expectedBuf = makeRequestBuffer(0x20, '', '', '');
+  const dummySocket = {
     write: function(buf) {
       t.equal(expectedBuf.toString(), buf.toString());
     }
   };
-  var server = new MemJS.Server('test.example.com', 11211);
+  const server = new MemJS.Server('test.example.com', 11211);
   server._socket = dummySocket;
   server.listSasl();
   t.end();
@@ -17,7 +17,7 @@ test('AuthListMechanisms', function(t) {
 
 
 test('ResponseHandler with authentication error', function(t) {
-  var server = new MemJS.Server('localhost', 11211);
+  const server = new MemJS.Server('localhost', 11211);
 
   server.onError('test', function(err) {
     t.equal('Memcached server authentication failed!', err.message);
@@ -25,7 +25,7 @@ test('ResponseHandler with authentication error', function(t) {
 
   // Simulate a memcached server response, with an authentication error
   // No SASL configured, wrong credentials, ...
-  var responseBuf = makeRequestBuffer(0x21, '', '', '');
+  const responseBuf = makeRequestBuffer(0x21, '', '', '');
   // Override status
   // 0x20 = Authentication required / Not Successful
   responseBuf.writeUInt16BE(0x20, 6);
@@ -36,20 +36,20 @@ test('ResponseHandler with authentication error', function(t) {
 });
 
 test('Authenticate', function(t) {
-  var expectedBuf = makeRequestBuffer(0x21, 'PLAIN', '', '\0user1\0password');
-  var dummySocket = {
+  const expectedBuf = makeRequestBuffer(0x21, 'PLAIN', '', '\0user1\0password');
+  const dummySocket = {
     write: function(buf) {
       t.equal(expectedBuf.toString(), buf.toString());
     }
   };
-  var server = new MemJS.Server('test.example.com', 11211, 'user1', 'password', {});
+  const server = new MemJS.Server('test.example.com', 11211, 'user1', 'password', {});
   server._socket = dummySocket;
   server.saslAuth();
   t.end();
 });
 
 test('SetSaslCredentials', function(t) {
-  var server;
+  let server;
   server = new MemJS.Server('test.example.com', 11211, undefined,
     undefined, {username: 'user1', password: 'password'});
   t.equal('user1', server.username);
@@ -69,8 +69,8 @@ test('SetSaslCredentials', function(t) {
 });
 
 test('ResponseCallbackOrdering', function(t) {
-  var server = new MemJS.Server();
-  var callbacksCalled = 0;
+  const server = new MemJS.Server();
+  let callbacksCalled = 0;
 
   server.onResponse(1, function() {
     t.equal(0, callbacksCalled);

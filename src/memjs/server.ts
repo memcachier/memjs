@@ -99,7 +99,7 @@ export class Server extends events.EventEmitter {
   }
 
   respond(response: Message) {
-    var callback = this.responseCallbacks[response.header.opaque];
+    const callback = this.responseCallbacks[response.header.opaque];
     if (!callback) {
       // in case of authentication, no callback is registered
       return;
@@ -117,7 +117,7 @@ export class Server extends events.EventEmitter {
   }
 
   error(err: Error) {
-    var errcalls = this.errorCallbacks;
+    const errcalls = this.errorCallbacks;
     this.connectCallbacks = [];
     this.responseCallbacks = {};
     this.requestTimeouts = [];
@@ -133,26 +133,26 @@ export class Server extends events.EventEmitter {
   }
 
   listSasl() {
-    var buf = makeRequestBuffer(0x20, "", "", "");
+    const buf = makeRequestBuffer(0x20, "", "", "");
     this.writeSASL(buf);
   }
 
   saslAuth() {
-    var authStr = "\x00" + this.username + "\x00" + this.password;
-    var buf = makeRequestBuffer(0x21, "PLAIN", "", authStr);
+    const authStr = "\x00" + this.username + "\x00" + this.password;
+    const buf = makeRequestBuffer(0x21, "PLAIN", "", authStr);
     this.writeSASL(buf);
   }
 
   appendToBuffer(dataBuf: Buffer) {
-    var old = this.responseBuffer;
+    const old = this.responseBuffer;
     this.responseBuffer = Buffer.alloc(old.length + dataBuf.length);
     old.copy(this.responseBuffer, 0);
     dataBuf.copy(this.responseBuffer, old.length);
     return this.responseBuffer;
   }
   responseHandler(dataBuf: Buffer) {
-    var response = parseMessage(this.appendToBuffer(dataBuf));
-    var respLength;
+    let response = parseMessage(this.appendToBuffer(dataBuf));
+    let respLength: number;
     while (response) {
       if (response.header.opcode === 0x20) {
         this.saslAuth();
@@ -169,7 +169,7 @@ export class Server extends events.EventEmitter {
     }
   }
   sock(sasl: boolean, go: OnConnectCallback) {
-    var self = this;
+    const self = this;
 
     if (!self._socket) {
       // CASE 1: completely new socket
@@ -254,8 +254,8 @@ export class Server extends events.EventEmitter {
   }
 
   write(blob: Buffer) {
-    var self = this;
-    var deadline = Math.round(self.options.timeout * 1000);
+    const self = this;
+    const deadline = Math.round(self.options.timeout * 1000);
     this.sock(false, function (s) {
       s.write(blob);
       self.requestTimeouts.push(timestamp() + deadline);
@@ -292,7 +292,7 @@ export class Server extends events.EventEmitter {
 // We handle tracking timeouts with an array of deadlines (requestTimeouts), as
 // node doesn't like us setting up lots of timers, and using just one is more
 // efficient anyway.
-var timeoutHandler = function (server: Server, sock: net.Socket) {
+const timeoutHandler = function (server: Server, sock: net.Socket) {
   if (server.requestTimeouts.length === 0) {
     // nothing active
     server.timeoutSet = false;
@@ -300,8 +300,8 @@ var timeoutHandler = function (server: Server, sock: net.Socket) {
   }
 
   // some requests outstanding, check if any have timed-out
-  var now = timestamp();
-  var soonestTimeout = server.requestTimeouts[0];
+  const now = timestamp();
+  const soonestTimeout = server.requestTimeouts[0];
 
   if (soonestTimeout <= now) {
     // timeout occurred!
@@ -312,7 +312,7 @@ var timeoutHandler = function (server: Server, sock: net.Socket) {
     server.error(new Error("socket timed out waiting on response."));
   } else {
     // no timeout! Setup next one.
-    var deadline = soonestTimeout - now;
+    const deadline = soonestTimeout - now;
     sock.setTimeout(deadline, function () {
       timeoutHandler(server, sock);
     });
