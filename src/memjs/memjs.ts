@@ -226,11 +226,8 @@ class Client<Value = MaybeBuffer, Extras = MaybeBuffer> {
   /**
    * Given a key to look up in memcache, return a serverKey (based on some
    * hashing function) which can be used to index this.serverMap
-   *
-   * @param  {string} key
-   * @returns {string}
    */
-  lookupKeyToServerKey(key: string) {
+  lookupKeyToServerKey(key: string): string {
     return this.options.keyToServerHashFunction(this.serverKeys, key);
   }
 
@@ -491,46 +488,29 @@ class Client<Value = MaybeBuffer, Extras = MaybeBuffer> {
   }
 
   /**
-   * SET
-   *
-   * Sets the given _key_ and _value_ in memcache.
-   *
-   * The options dictionary takes:
-   * * _expires_: overrides the default expiration (see `Client.create`) for this
-   *              particular key-value pair.
-   *
-   * The callback signature is:
-   *
-   *     callback(err, success)
-   * @param key
-   * @param value
-   * @param options
-   * @param callback
+   * Sets the given _key_ to _value_.
    */
   set(
     key: string,
     value: Value,
-    options?: { expires?: number }
+    options?: { expires?: number; cas?: CASToken }
   ): Promise<boolean | null>;
   set(
     key: string,
     value: Value,
-    options: { expires?: number },
+    options: { expires?: number; cas?: CASToken },
     callback: (error: Error | null, success: boolean | null) => void
   ): void;
   set(
     key: string,
     value: Value,
-    options: { expires?: number },
+    options: { expires?: number; cas?: CASToken },
     callback?: (error: Error | null, success: boolean | null) => void
   ): Promise<boolean | null> | void {
     if (callback === undefined && typeof options !== "function") {
       if (!options) options = {};
       return promisify((callback) => {
-        this.set(key, value, options as { expires?: number }, function (
-          err,
-          success
-        ) {
+        this.set(key, value, options, function (err, success) {
           callback(err, success);
         });
       });
