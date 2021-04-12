@@ -320,7 +320,6 @@ class Client<Value = MaybeBuffer, Extras = MaybeBuffer> {
     }
 
     const request = Buffer.alloc(requestSize);
-    request.fill(0);
 
     let bytesWritten = 0;
     for (const keyIdx in keys) {
