@@ -10,9 +10,10 @@ import type { GivenClientOptions } from "../src/memjs/memjs"
 import * as Utils from "../src/memjs/utils"
 import { MaybeBuffer } from "../src/memjs/utils"
 
-type TapType = any
+// I could not figure out a better way to extract this from the typedefs
+type TapTestType = (typeof tap)["Test"]["prototype"]
 
-function testAllCallbacksEmpty(t: TapType, server: MemJS.Server) {
+function testAllCallbacksEmpty(t: TapTestType, server: MemJS.Server) {
 	t.deepEqual(Object.keys(server.responseCallbacks).length, 0)
 	t.deepEqual(Object.keys(server.errorCallbacks).length, 0)
 
@@ -202,7 +203,7 @@ tap.only("GetMultiSuccessful_SingleBackend", function (t) {
 	})
 })
 
-function makeDummyMultiGetServerResponder(t: TapType, responseMap: Record<string, string | undefined>, serverName?: string) {
+function makeDummyMultiGetServerResponder(t: TapTestType, responseMap: Record<string, string | undefined>, serverName?: string) {
 	const server = makeDummyServer(serverName || "dummyServer")
 	const responder = function (requestBuf: Buffer) {
 		const requests = Utils.parseMessages(requestBuf)
@@ -1332,7 +1333,7 @@ test("Very Large Client Seq", function (t) {
 	})
 })
 
-const makeDummyVersionServer = (t: TapType, serverKey: string, version: string) => {
+const makeDummyVersionServer = (t: TapTestType, serverKey: string, version: string) => {
 	const dummyServer = makeDummyServer(serverKey)
 	dummyServer.write = function (requestBuf) {
 		const request = parseMessage(requestBuf)
