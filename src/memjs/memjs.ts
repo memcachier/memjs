@@ -526,13 +526,17 @@ class Client<Value = MaybeBuffer, Extras = MaybeBuffer> {
 
     const opcode: constants.OP = 1;
     const serialized = this.serializer.serialize(opcode, value, extras);
-    const request = makeRequestBuffer(
-      opcode,
+
+    const request = Utils.encodeRequest({
+      header: {
+        opcode: constants.OP_SET,
+        opaque: this.seq,
+        cas: options.cas,
+      },
       key,
-      serialized.extras,
-      serialized.value,
-      this.seq
-    );
+      value: serialized.value,
+      extras: serialized.extras,
+    });
     this.perform(key, request, this.seq, function (err, response) {
       if (err) {
         if (callback) {
