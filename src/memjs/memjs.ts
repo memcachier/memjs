@@ -26,7 +26,10 @@ import * as constants from "./constants";
 import * as Utils from "./utils";
 import * as Header from "./header";
 
-function defaultKeyToServerHashFunction(servers: string[], key: string): string {
+function defaultKeyToServerHashFunction(
+  servers: string[],
+  key: string
+): string {
   const total = servers.length;
   const index = total > 1 ? hashCode(key) % total : 0;
   return servers[index];
@@ -60,9 +63,18 @@ interface SerializerProp<Value, Extras> {
   serializer: Serializer<Value, Extras>;
 }
 
-type IfBuffer<Value, Extras, IsBuffer, NotBuffer> = Value extends Buffer
+/**
+ * If Value and Extras are of type Buffer, then return type WhenBuffer. Otherwise,
+ * return type NotBuffer.
+ */
+type IfBuffer<
+  Value,
+  Extras,
+  WhenValueAndExtrasAreBuffers,
+  NotBuffer
+> = Value extends Buffer
   ? Extras extends Buffer
-    ? IsBuffer
+    ? WhenValueAndExtrasAreBuffers
     : NotBuffer
   : NotBuffer;
 
@@ -73,6 +85,18 @@ export type GivenClientOptions<Value, Extras> = Partial<BaseClientOptions> &
     Partial<SerializerProp<Value, Extras>>,
     SerializerProp<Value, Extras>
   >;
+
+type CASToken = Buffer;
+
+interface GetResult<Value, Extras> {
+  value: Value;
+  extras: Extras;
+  cas: CASToken | undefined;
+}
+
+type GetMultiResult<Keys extends string, Value, Extras> = {
+  [K in Keys]: GetResult<Value, Extras>;
+};
 
 class Client<Value, Extras> {
   servers: Server[];
@@ -226,40 +250,27 @@ class Client<Value, Extras> {
   // arguments.
 
   /**
-   * GET
-   *
    * Retrieves the value at the given key in memcache.
-   *
-   * The callback signature is:
-   *
-   *     callback(err, value, flags)
-   *
-   * _value_ and _flags_ are both `Buffer`s. If the key is not found, the
-   * callback is invoked with null for both arguments and no error
-   * @param key
-   * @param callback
    */
-  get(key: string): Promise<{ value: Value | null; flags: Extras | null }>;
+  get(key: string): Promise<GetResult<Value, Extras> | null>;
   get(
     key: string,
     callback: (
       error: Error | null,
-      value: Value | null,
-      flags: Extras | null
+      result: GetResult<Value, Extras> | null
     ) => void
   ): void;
   get(
     key: string,
     callback?: (
       error: Error | null,
-      value: Value | null,
-      flags: Extras | null
+      result: GetResult<Value, Extras> | null
     ) => void
-  ): Promise<{ value: Value | null; flags: Extras | null }> | void {
+  ): Promise<GetResult<Value, Extras> | null> | void {
     if (callback === undefined) {
       return promisify((callback) => {
-        this.get(key, function (err, value, flags) {
-          callback(err, { value: value, flags: flags });
+        this.get(key, function (err, value) {
+          callback(err, value);
         });
       });
     }
@@ -269,7 +280,7 @@ class Client<Value, Extras> {
     this.perform(key, request, this.seq, (err, response) => {
       if (err) {
         if (callback) {
-          callback(err, null, null);
+          callback(err, null);
         }
         return;
       }
@@ -281,12 +292,12 @@ class Client<Value, Extras> {
               response!.val,
               response!.extras
             );
-            callback(null, deserialized.value, deserialized.extras);
+            callback(null, { ...deserialized, cas: response!.header.cas });
           }
           break;
         case constants.RESPONSE_STATUS_KEY_NOT_FOUND:
           if (callback) {
-            callback(null, null, null);
+            callback(null, null);
           }
           break;
         default:
@@ -294,7 +305,7 @@ class Client<Value, Extras> {
             "MemJS GET: " + errors[response!.header.status || UNKNOWN_ERROR];
           logger.log(errorMessage);
           if (callback) {
-            callback(new Error(errorMessage), null, null);
+            callback(new Error(errorMessage), null);
           }
       }
     });
@@ -304,7 +315,7 @@ class Client<Value, Extras> {
    *
    * cf https://github.com/couchbase/memcached/blob/master/docs/BinaryProtocol.md#0x0d-getkq-get-with-key-quietly
    */
-  _buildGetMultiRequest(keys: string[]) {
+  _buildGetMultiRequest(keys: string[]): Buffer {
     // start at 24 for the no-op command at the end
     let requestSize = 24;
     for (const keyIdx in keys) {
@@ -342,18 +353,15 @@ class Client<Value, Extras> {
   }
 
   /** Executing a pipelined (multi) get against a single server. This is a private implementation detail of getMulti. */
-  _getMultiToServer(
+  _getMultiToServer<Keys extends string>(
     serv: Server,
-    keys: string[],
+    keys: Keys[],
     callback: (
       error: Error | null,
-      values: { [key: string]: Value | null } | null,
-      flags: Extras | null
+      values: GetMultiResult<Keys, Value, Extras> | null
     ) => void
   ) {
-    const responseMap: {
-      [server: string]: Value | null;
-    } = {};
+    const responseMap: GetMultiResult<string, Value, Extras> = {};
 
     const handle: OnResponseCallback = (response) => {
       switch (response.header.status) {
@@ -369,16 +377,17 @@ class Client<Value, Extras> {
               // This ensures the handler will be deleted from the responseCallbacks map in server.js
               // This isn't technically needed here because the logic in server.js also checks if totalBodyLength === 0, but our unittests aren't great about setting that field, and also this makes it more explicit
               handle.quiet = false;
-              callback(null, responseMap, deserialized.extras);
+              callback(null, responseMap);
             } else {
               const key = response.key.toString();
-              responseMap[key] = deserialized.value;
+              responseMap[key] = { ...deserialized, cas: response.header.cas };
             }
           }
           break;
         case constants.RESPONSE_STATUS_KEY_NOT_FOUND:
           if (callback) {
-            callback(null, null, null);
+            // @blackmad: IS THIS CORRECT???
+            callback(null, null);
           }
           break;
         default:
@@ -386,7 +395,7 @@ class Client<Value, Extras> {
             "MemJS GET: " + errors[response.header.status || UNKNOWN_ERROR];
           this.options.logger.log(errorMessage);
           if (callback) {
-            callback(new Error(errorMessage), null, null);
+            callback(new Error(errorMessage), null);
           }
       }
     };
@@ -398,7 +407,7 @@ class Client<Value, Extras> {
     serv.onResponse(this.seq, handle);
     serv.onError(this.seq, function (err) {
       if (callback) {
-        callback(err, serv.hostportString() as any /* TODO */, null);
+        callback(err, null);
       }
     });
     this.incrSeq();
@@ -406,46 +415,30 @@ class Client<Value, Extras> {
   }
 
   /**
-   * MULTI-GET / GET-MULTI
-   *
-   * Retrieves the value at the given keys in memcache.
-   *
-   * The callback signature is:
-   *
-   *     callback(err, value, flags)
-   *
-   * @param keys
-   * @param callback
+   * Retrievs the value at the given keys in memcached. Returns a map from the
+   * requested keys to results, or null if the key was not found.
    */
   getMulti<Keys extends string>(
     keys: Keys[]
-  ): Promise<{
-    values: { [K in Keys]?: Value | null } | null;
-    flags: Extras | null;
-  }>;
+  ): Promise<GetMultiResult<Keys, Value, Extras> | null>;
   getMulti<Keys extends string>(
     keys: Keys[],
     callback: (
       error: Error | null,
-      value: { [K in Keys]?: Value | null } | null,
-      flags: Extras | null
+      value: GetMultiResult<Keys, Value, Extras> | null
     ) => void
   ): void;
   getMulti<Keys extends string>(
     keys: Keys[],
     callback?: (
       error: Error | null,
-      value: { [K in Keys]?: Value | null } | null,
-      flags: Extras | null
+      value: GetMultiResult<Keys, Value, Extras> | null
     ) => void
-  ): Promise<{
-    values: { [K in Keys]?: Value | null } | null;
-    flags: Extras | null;
-  }> | void {
+  ): Promise<GetMultiResult<Keys, Value, Extras> | null> | void {
     if (callback === undefined) {
       return promisify((callback) => {
-        this.getMulti(keys, function (err, values, flags) {
-          callback(err, { values: values, flags: flags });
+        this.getMulti(keys, function (err, value) {
+          callback(err, value);
         });
       });
     }
@@ -463,12 +456,11 @@ class Client<Value, Extras> {
 
     const usedServerKeys = Object.keys(serverKeytoLookupKeys);
     let outstandingCalls = usedServerKeys.length;
-    const recordMap = {};
+    const recordMap: GetMultiResult<string, Value, Extras> = {};
     let hadError = false;
     function latchCallback(
       err: Error | null,
-      values: { [key: string]: Value | null } | null,
-      flags: Extras | null
+      values: GetMultiResult<string, Value, Extras> | null
     ) {
       if (hadError) {
         return;
@@ -476,14 +468,14 @@ class Client<Value, Extras> {
 
       if (err) {
         hadError = true;
-        callback!(err, null, null);
+        callback!(err, null);
         return;
       }
 
       merge(recordMap, values);
       outstandingCalls -= 1;
       if (outstandingCalls === 0) {
-        callback!(null, recordMap, flags);
+        callback!(null, recordMap);
       }
     }
 
@@ -535,20 +527,17 @@ class Client<Value, Extras> {
     if (callback === undefined && typeof options !== "function") {
       if (!options) options = {};
       return promisify((callback) => {
-        this.set(
-          key,
-          value,
-          options as { expires?: number },
-          function (err, success) {
-            callback(err, success);
-          }
-        );
+        this.set(key, value, options as { expires?: number }, function (
+          err,
+          success
+        ) {
+          callback(err, success);
+        });
       });
     }
 
-    const logger = this.options.logger
+    const logger = this.options.logger;
     const expires = (options || {}).expires;
-
 
     // TODO: support flags, support version (CAS)
     this.incrSeq();
@@ -626,21 +615,21 @@ class Client<Value, Extras> {
     if (callback === undefined && options !== "function") {
       if (!options) options = {};
       return promisify((callback) => {
-        this.add(
-          key,
-          value,
-          options as { expires?: number },
-          function (err, success) {
-            callback(err, success);
-          }
-        );
+        this.add(key, value, options as { expires?: number }, function (
+          err,
+          success
+        ) {
+          callback(err, success);
+        });
       });
     }
     const logger = this.options.logger;
 
     // TODO: support flags, support version (CAS)
     this.incrSeq();
-    const expiration = makeExpiration((options || {}).expires || this.options.expires);
+    const expiration = makeExpiration(
+      (options || {}).expires || this.options.expires
+    );
     const extras = Buffer.concat([Buffer.from("00000000", "hex"), expiration]);
 
     const opcode: constants.OP = 2;
@@ -708,21 +697,21 @@ class Client<Value, Extras> {
     if (callback === undefined && options !== "function") {
       if (!options) options = {};
       return promisify((callback) => {
-        this.replace(
-          key,
-          value,
-          options as { expires?: number },
-          function (err, success) {
-            callback(err, success);
-          }
-        );
+        this.replace(key, value, options as { expires?: number }, function (
+          err,
+          success
+        ) {
+          callback(err, success);
+        });
       });
     }
     const logger = this.options.logger;
 
     // TODO: support flags, support version (CAS)
     this.incrSeq();
-    const expiration = makeExpiration((options || {}).expires || this.options.expires);
+    const expiration = makeExpiration(
+      (options || {}).expires || this.options.expires
+    );
     const extras = Buffer.concat([Buffer.from("00000000", "hex"), expiration]);
 
     const opcode: constants.OP = 3;
@@ -1097,7 +1086,8 @@ class Client<Value, Extras> {
     const logger = this.options.logger;
     this.incrSeq();
 
-    const opcode: constants.OP = constants.OP_PREPEND; /* WAS WRONG IN ORIGINAL */
+    const opcode: constants.OP =
+      constants.OP_PREPEND; /* WAS WRONG IN ORIGINAL */
     const serialized = this.serializer.serialize(opcode, value, "");
     const request = makeRequestBuffer(
       opcode,
@@ -1436,7 +1426,13 @@ class Client<Value, Extras> {
     }
 
     this.incrSeq();
-    const request = makeRequestBuffer(constants.OP_VERSION, "", "", "", this.seq);
+    const request = makeRequestBuffer(
+      constants.OP_VERSION,
+      "",
+      "",
+      "",
+      this.seq
+    );
     const logger = this.options.logger;
 
     this.performOnServer(server, request, this.seq, (err, response) => {
