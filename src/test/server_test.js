@@ -1,6 +1,6 @@
 const test = require('tap').test;
 const MemJS = require('../');
-const makeRequestBuffer = require('../lib/memjs/utils').makeRequestBuffer;
+const makeRequestBuffer = require('../memjs/utils').makeRequestBuffer;
 
 test('AuthListMechanisms', function(t) {
   const expectedBuf = makeRequestBuffer(0x20, '', '', '');

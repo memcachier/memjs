@@ -1,5 +1,5 @@
 const test = require('tap').test;
-const header = require('../lib/memjs/header');
+const header = require('../memjs/header');
 
 test('ParseHeaderResponse', function(t) {
   const headerBuf = Buffer.from([0x81, 1, 7, 0, 4, 3, 0, 1, 0, 0, 0, 9, 0, 0, 0, 0, 0x0a, 0, 0, 0, 0, 0, 0, 0]);

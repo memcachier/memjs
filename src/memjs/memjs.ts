@@ -7,11 +7,7 @@ import {
   Server,
   ServerOptions,
 } from "./server";
-import {
-  noopSerializer,
-  Serializer,
-  SerializerResult,
-} from "./noop-serializer";
+import { noopSerializer, Serializer } from "./noop-serializer";
 import {
   makeRequestBuffer,
   copyIntoRequestBuffer,
@@ -86,19 +82,23 @@ export type GivenClientOptions<Value, Extras> = Partial<BaseClientOptions> &
     SerializerProp<Value, Extras>
   >;
 
-type CASToken = Buffer;
+export type CASToken = Buffer;
 
-interface GetResult<Value, Extras> {
+export interface GetResult<Value = MaybeBuffer, Extras = MaybeBuffer> {
   value: Value;
   extras: Extras;
   cas: CASToken | undefined;
 }
 
-type GetMultiResult<Keys extends string, Value, Extras> = {
+export type GetMultiResult<
+  Keys extends string = string,
+  Value = MaybeBuffer,
+  Extras = MaybeBuffer
+> = {
   [K in Keys]: GetResult<Value, Extras>;
 };
 
-class Client<Value, Extras> {
+class Client<Value = MaybeBuffer, Extras = MaybeBuffer> {
   servers: Server[];
   seq: number;
   options: BaseClientOptions & Partial<SerializerProp<Value, Extras>>;

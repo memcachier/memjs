@@ -23,10 +23,10 @@
     "lib": "./lib/memjs"
   },
   "scripts": {
-    "build": "tsc",
-    "test": "tap --no-coverage -R spec ./test/*.js ./test/*.ts",
-    "bench": "tsc && NODE_PATH=lib/memjs/ node bench/memjs.js",
-    "bench-timers": "tsc && NODE_PATH=lib/memjs/ node bench/timers.js"
+    "tsc": "rm -rf ./lib && tsc",
+    "test": "npm run-script tsc && tap --no-coverage -R spec ./lib/test/*.js",
+    "bench": "npm run-script tsc && NODE_PATH=lib/memjs/ node bench/memjs.js",
+    "bench-timers": "npm run-script tsc && NODE_PATH=lib/memjs/ node bench/timers.js"
   },
   "devDependencies": {
     "@types/node": "12.20.7",
