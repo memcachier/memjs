@@ -35,6 +35,10 @@ function parseMessage(requestBuf: Buffer) {
 }
 
 function makeDummyServer(name: string) {
+	/* NOTE(blackmad): awful hack - MemJS natively speaks Buffers, but they are annoying
+	   to test, so we shim it in some ugly ways to return strings which are easier to work
+		 with. We should fix this at some point.
+	  */
   return new MemJS.Server(name) as MemJS.Server & {
     respond: (m: {
       extras?: string | Buffer,
@@ -53,8 +57,8 @@ test("GetSuccessful", function (t) {
 		n += 1
 		dummyServer.respond({
 			header: { status: 0, opaque: request.header.opaque },
-			val: Buffer.from("world"),
-			extras: Buffer.from("flagshere"),
+			val: "world",
+			extras: "flagshere",
 		})
 	}
 
