@@ -1,16 +1,18 @@
 import tap from 'tap'
 const test = tap.test
 
-const errors = require("../lib/memjs/protocol").errors
-import MemJS = require("../")
-import constants = require("../lib/memjs/constants")
-import { noopSerializer } from "../lib/memjs/noop-serializer"
-import { Header } from "../lib/memjs/header"
-import type { GivenClientOptions } from "../lib/memjs/memjs"
-import * as Utils from "../lib/memjs/utils"
-import { MaybeBuffer } from "../lib/memjs/utils"
+const errors = require("../src/memjs/protocol").errors
+import MemJS = require("../src")
+import constants = require("../src/memjs/constants")
+import { noopSerializer } from "../src/memjs/noop-serializer"
+import { Header } from "../src/memjs/header"
+import type { GivenClientOptions } from "../src/memjs/memjs"
+import * as Utils from "../src/memjs/utils"
+import { MaybeBuffer } from "../src/memjs/utils"
 
-function testAllCallbacksEmpty(t: any, server: MemJS.Server) {
+type TapType = any
+
+function testAllCallbacksEmpty(t: TapType, server: MemJS.Server) {
 	t.deepEqual(Object.keys(server.responseCallbacks).length, 0)
 	t.deepEqual(Object.keys(server.errorCallbacks).length, 0)
 
@@ -57,7 +59,7 @@ test("GetSuccessful", function (t) {
 	}
 
 	const client = makeClient([dummyServer])
-	const assertor = function (err: Error | null, val: string | MaybeBuffer, flags: string) {
+	const assertor = function (err: Error | null, val: string | MaybeBuffer | null, flags: string) {
 		t.equal("world", val)
 		t.equal("flagshere", flags)
 		t.equal(null, err)
@@ -83,9 +85,8 @@ test("GetNotFound", function (t) {
 	}
 
 	const client = makeClient([dummyServer])
-	const assertor = function (val, flags) {
+	const assertor = function (err: Error | null, val: string | MaybeBuffer | null) {
 		t.equal(null, val)
-		t.equal(null, flags)
 		t.equal(1, n, "Ensure get is called")
 	}
 	client.get("hello", assertor)
@@ -122,7 +123,7 @@ test("GetSerializer", function (t) {
 			},
 		},
 	})
-	const assertor = function (err: Error | null, val: string | MaybeBuffer, flags: string) {
+	const assertor = function (err: Error | null, val: string | Buffer | null, flags: string) {
 		t.equal("deserialized", val)
 		t.equal("flagshere", flags)
 		t.equal(null, err)
@@ -197,13 +198,13 @@ tap.only("GetMultiSuccessful_SingleBackend", function (t) {
 	})
 })
 
-function makeDummyMultiGetServerResponder(t, responseMap, serverName?: string) {
+function makeDummyMultiGetServerResponder(t: TapType, responseMap: Record<string, string | undefined>, serverName?: string) {
 	const server = makeDummyServer(serverName || "dummyServer")
-	const responder = function (requestBuf) {
+	const responder = function (requestBuf: Buffer) {
 		const requests = Utils.parseMessages(requestBuf)
 		t.equal(requests.length, Object.keys(responseMap).length + 1)
 
-		function checkAndRespond(request, key, value) {
+		function checkAndRespond(request: Utils.Message, key: string, value: string | undefined) {
 			t.equal(constants.OP_GETKQ, request.header.opcode)
 
 			if (value !== undefined) {
@@ -359,9 +360,9 @@ test("GetMultiError_MultiBackend", function (t) {
 
 	const client = makeClient(servers)
 
-	const assertor = function (err) {
+	const assertor = function (err: Error | null) {
 		t.notEqual(null, err)
-		t.equal("This is an expected error.", err.message)
+		t.equal("This is an expected error.", err?.message)
 	}
 	client.getMulti(["hello1", "hello2", "hello3", "hello4"], assertor)
 	testAllCallbacksEmpty(t, dummyServer1)
@@ -407,7 +408,7 @@ test("GetMultiError", function (t) {
 		const requests = Utils.parseMessages(requestBuf)
 		t.equal(requests.length, 4)
 
-		function checkAndRespond(request, key, value) {
+		function checkAndRespond(request: Utils.Message, key: string, value: string) {
 			t.equal(key, request.key.toString())
 			t.equal(constants.OP_GETKQ, request.header.opcode)
 
@@ -427,9 +428,9 @@ test("GetMultiError", function (t) {
 	}
 
 	const client = makeClient([dummyServer])
-	const assertor = function (err) {
+	const assertor = function (err: Error | null) {
 		t.notEqual(null, err)
-		t.equal("This is an expected error.", err.message)
+		t.equal("This is an expected error.", err?.message)
 	}
 	client.getMulti(["hello1", "hello2", "hello3"], assertor)
 	testAllCallbacksEmpty(t, dummyServer)
@@ -454,7 +455,7 @@ test("SetSuccessful", function (t) {
 	}
 
 	const client = makeClient([dummyServer])
-	const assertor = function (err, val) {
+	const assertor = function (err: Error | null, val: boolean | null) {
 		t.equal(true, val)
 		t.equal(null, err)
 		t.equal(1, n, "Ensure set is called")
@@ -480,7 +481,7 @@ test("SetSuccessfulWithoutOption", function (t) {
 	}
 
 	const client = makeClient([dummyServer])
-	client.set("hello", "world", {}, function (err, val) {
+	client.set("hello", "world", {}, function (err: Error | null, val) {
 		t.equal(true, val)
 		t.equal(null, err)
 		t.equal(1, n, "Ensure set is called")
@@ -524,7 +525,7 @@ test("SetWithExpiration", function (t) {
 	}
 
 	const client = makeClient([dummyServer], { expires: 1024 })
-	client.set("hello", "world", {}, function (err, val) {
+	client.set("hello", "world", {}, function (err: Error | null, val) {
 		t.equal(null, err)
 		t.equal(true, val)
 		t.equal(1, n, "Ensure set is called")
@@ -546,9 +547,9 @@ test("SetUnsuccessful", function (t) {
 	}
 
 	const client = makeClient([dummyServer])
-	const assertor = function (err, val) {
+	const assertor = function (err: Error | null, val: boolean | null) {
 		t.equal(null, val)
-		t.equal("MemJS SET: " + errors[3], err.message)
+		t.equal("MemJS SET: " + errors[3], err?.message)
 		t.equal(1, n, "Ensure set is called")
 	}
 	client.set("hello", "world", {}, assertor)
@@ -570,9 +571,9 @@ test("SetError", function (t) {
 	}
 
 	const client = makeClient([dummyServer])
-	client.set("hello", "world", {}, function (err, val) {
+	client.set("hello", "world", {}, function (err: Error | null, val) {
 		t.notEqual(null, err)
-		t.equal("This is an expected error.", err.message)
+		t.equal("This is an expected error.", err?.message)
 		t.equal(null, val)
 		t.equal(2, n, "Ensure set is retried once")
 		t.end()
@@ -596,7 +597,7 @@ test("SetError", function (t) {
 	client.set("hello", "world", {}, function (err /*, val */) {
 		t.equal(2, n, "Ensure set is retried once")
 		t.ok(err, "Ensure callback called with error")
-		t.equal("This is an expected error.", err.message)
+		t.equal("This is an expected error.", err?.message)
 		t.end()
 	})
 })
@@ -614,14 +615,14 @@ test("SetErrorConcurrent", function (t) {
 	const client = makeClient([dummyServer], { retries: 2 })
 	client.set("hello", "world", {}, function (err /*, val */) {
 		t.ok(err, "Ensure callback called with error")
-		t.equal("This is an expected error.", err.message)
+		t.equal("This is an expected error.", err?.message)
 		callbn1 += 1
 		done()
 	})
 
 	client.set("foo", "bar", {}, function (err /*, val */) {
 		t.ok(err, "Ensure callback called with error")
-		t.equal("This is an expected error.", err.message)
+		t.equal("This is an expected error.", err?.message)
 		callbn2 += 1
 		done()
 	})
@@ -653,7 +654,7 @@ test("SetUnicode", function (t) {
 	}
 
 	const client = makeClient([dummyServer])
-	client.set("hello", "éééoào", {}, function (err, val) {
+	client.set("hello", "éééoào", {}, function (err: Error | null, val) {
 		t.equal(true, val)
 		t.equal(1, n, "Ensure set is called")
 		t.end()
@@ -685,9 +686,9 @@ test("SetSerialize", function (t) {
 			},
 		},
 	})
-	const assertor = function (err, val) {
+	const assertor = function (err: Error | null, val: boolean | null) {
 		t.equal(null, val)
-		t.equal("MemJS SET: " + errors[3], err.message)
+		t.equal("MemJS SET: " + errors[3], err?.message)
 		t.equal(1, n, "Ensure set is called")
 		t.equal(1, sn, "Ensure serialization is called once")
 	}
@@ -714,7 +715,7 @@ test("AddSuccessful", function (t) {
 	}
 
 	const client = makeClient([dummyServer], { expires: 1024 })
-	const assertor = function (err, val) {
+	const assertor = function (err: Error | null, val: boolean | null) {
 		t.equal(null, err)
 		t.equal(true, val)
 		t.equal(1, n, "Ensure add is called")
@@ -741,7 +742,7 @@ test("AddSuccessfulWithoutOption", function (t) {
 	}
 
 	const client = makeClient([dummyServer], { expires: 1024 })
-	client.add("hello", "world", {}, function (err, val) {
+	client.add("hello", "world", {}, function (err: Error | null, val) {
 		t.equal(null, err)
 		t.equal(true, val)
 		t.equal(1, n, "Ensure add is called")
@@ -763,7 +764,7 @@ test("AddKeyExists", function (t) {
 	}
 
 	const client = makeClient([dummyServer])
-	client.add("hello", "world", {}, function (err, val) {
+	client.add("hello", "world", {}, function (err: Error | null, val) {
 		t.equal(null, err)
 		t.equal(false, val)
 		t.equal(1, n, "Ensure add is called")
@@ -801,7 +802,7 @@ test("AddSerializer", function (t) {
 			},
 		},
 	})
-	const assertor = function (err, val) {
+	const assertor = function (err: Error | null, val: boolean | null) {
 		t.equal(null, err)
 		t.equal(true, val)
 		t.equal(1, n, "Ensure add is called")
@@ -830,7 +831,7 @@ test("ReplaceSuccessful", function (t) {
 	}
 
 	const client = makeClient([dummyServer], { expires: 1024 })
-	const assertor = function (err, val) {
+	const assertor = function (err: Error | null, val: boolean | null) {
 		t.equal(null, err)
 		t.equal(true, val)
 		t.equal(1, n, "Ensure replace is called")
@@ -862,7 +863,7 @@ test("ReplaceSuccessfulWithoutOption", function (t) {
 	}
 
 	const client = makeClient([dummyServer], { expires: 1024 })
-	client.replace("hello", "world", {}, function (err, val) {
+	client.replace("hello", "world", {}, function (err: Error | null, val) {
 		t.equal(null, err)
 		t.equal(true, val)
 		t.equal(1, n, "Ensure replace is called")
@@ -884,7 +885,7 @@ test("ReplaceKeyDNE", function (t) {
 	}
 
 	const client = makeClient([dummyServer])
-	client.replace("hello", "world", {}, function (err, val) {
+	client.replace("hello", "world", {}, function (err: Error | null, val) {
 		t.equal(null, err)
 		t.equal(false, val)
 		t.equal(1, n, "Ensure replace is called")
@@ -905,7 +906,7 @@ test("DeleteSuccessful", function (t) {
 	}
 
 	const client = makeClient([dummyServer])
-	const assertor = function (err, val) {
+	const assertor = function (err: Error | null, val: boolean | null) {
 		t.equal(null, err)
 		t.equal(true, val)
 		t.equal(1, n, "Ensure delete is called")
@@ -930,7 +931,7 @@ test("DeleteKeyDNE", function (t) {
 	}
 
 	const client = makeClient([dummyServer])
-	client.delete("hello", function (err, val) {
+	client.delete("hello", function (err: Error | null, val) {
 		t.equal(null, err)
 		t.equal(false, val)
 		t.equal(1, n, "Ensure delete is called")
@@ -953,7 +954,7 @@ test("Flush", function (t) {
 	}
 
 	const client = makeClient([dummyServer, dummyServer])
-	const assertor = function (err, results) {
+	const assertor = function (err: Error | null, results: Record<string, boolean | Error>) {
 		t.equal(null, err)
 		t.equal(true, results["example.com:1234"])
 		t.equal(2, n, "Ensure flush is called for each server")
@@ -990,10 +991,10 @@ test("Stats", function (t) {
 	}
 
 	const client = makeClient([dummyServer])
-	client.stats(function (err, server, stats) {
+	client.stats(function (err: Error | null, server, stats) {
 		t.equal(null, err)
-		t.equal("1432", stats.bytes)
-		t.equal("5432", stats.count)
+		t.equal("1432", stats?.bytes)
+		t.equal("5432", stats?.count)
 		t.equal("myhostname:5544", server)
 		t.equal(1, n, "Ensure stats is called")
 		t.end()
@@ -1033,7 +1034,7 @@ test("IncrementSuccessful", function (t) {
 		"number-increment-test",
 		5,
 		{},
-		function (err, success, val) {
+		function (err: Error | null, success, val) {
 			callbn += 1
 			t.equal(true, success)
 			t.equal(6, val)
@@ -1046,7 +1047,7 @@ test("IncrementSuccessful", function (t) {
 		"number-increment-test",
 		5,
 		{ initial: 3 },
-		function (err, success, val) {
+		function (err: Error | null, success, val) {
 			callbn += 1
 			t.equal(true, success)
 			t.equal(6, val)
@@ -1096,7 +1097,7 @@ test("DecrementSuccessful", function (t) {
 		"number-decrement-test",
 		5,
 		{},
-		function (err, success, val) {
+		function (err: Error | null, success, val) {
 			t.equal(true, success)
 			t.equal(6, val)
 			t.equal(null, err)
@@ -1131,7 +1132,7 @@ test("DecrementSuccessfulWithoutOption", function (t) {
 	}
 
 	const client = makeClient([dummyServer])
-	client.decrement("number-decrement-test", 5, {}, function (err, success, val) {
+	client.decrement("number-decrement-test", 5, {}, function (err: Error | null, success, val) {
 		t.equal(true, success)
 		t.equal(6, val)
 		t.equal(null, err)
@@ -1154,7 +1155,7 @@ test("AppendSuccessful", function (t) {
 	}
 
 	const client = makeClient([dummyServer], { expires: 1024 })
-	client.append("hello", "world", function (err, val) {
+	client.append("hello", "world", function (err: Error | null, val) {
 		t.equal(null, err)
 		t.equal(true, val)
 		t.equal(1, n, "Ensure append is called")
@@ -1176,7 +1177,7 @@ test("AppendKeyDNE", function (t) {
 	}
 
 	const client = makeClient([dummyServer])
-	client.append("hello", "world", function (err, val) {
+	client.append("hello", "world", function (err: Error | null, val) {
 		t.equal(null, err)
 		t.equal(false, val)
 		t.equal(1, n, "Ensure append is called")
@@ -1198,7 +1199,7 @@ test("PrependSuccessful", function (t) {
 	}
 
 	const client = makeClient([dummyServer], { expires: 1024 })
-	client.prepend("hello", "world", function (err, val) {
+	client.prepend("hello", "world", function (err: Error | null, val) {
 		t.equal(null, err)
 		t.equal(true, val)
 		t.equal(1, n, "Ensure prepend is called")
@@ -1220,7 +1221,7 @@ test("PrependKeyDNE", function (t) {
 	}
 
 	const client = makeClient([dummyServer])
-	client.prepend("hello", "world", function (err, val) {
+	client.prepend("hello", "world", function (err: Error | null, val) {
 		t.equal(null, err)
 		t.equal(false, val)
 		t.equal(1, n, "Ensure prepend is called")
@@ -1243,7 +1244,7 @@ test("TouchSuccessful", function (t) {
 	}
 
 	const client = makeClient([dummyServer])
-	client.touch("hello", 1024, function (err, val) {
+	client.touch("hello", 1024, function (err: Error | null, val) {
 		t.equal(null, err)
 		t.equal(true, val)
 		t.equal(1, n, "Ensure touch is called")
@@ -1266,7 +1267,7 @@ test("TouchKeyDNE", function (t) {
 	}
 
 	const client = makeClient([dummyServer])
-	client.touch("hello", 1024, function (err, val) {
+	client.touch("hello", 1024, function (err: Error | null, val) {
 		t.equal(null, err)
 		t.equal(false, val)
 		t.equal(1, n, "Ensure ptouch is called")
@@ -1315,7 +1316,7 @@ test("Very Large Client Seq", function (t) {
 
 	const client = makeClient([dummyServer], { expires: 1024 })
 	client.seq = Math.pow(2, 33)
-	const assertor = function (err, val) {
+	const assertor = function (err: Error | null, val: boolean | null) {
 		t.equal(null, err)
 		t.equal(true, val)
 		t.equal(1, n, "Ensure add is called")
@@ -1327,7 +1328,7 @@ test("Very Large Client Seq", function (t) {
 	})
 })
 
-const makeDummyVersionServer = (t, serverKey, version) => {
+const makeDummyVersionServer = (t: TapType, serverKey: string, version: string) => {
 	const dummyServer = makeDummyServer(serverKey)
 	dummyServer.write = function (requestBuf) {
 		const request = parseMessage(requestBuf)
@@ -1379,9 +1380,9 @@ tap.only("VersionError", function (t) {
 	}
 
 	const client = makeClient([dummyServer])
-	const assertor = function (err) {
+	const assertor = function (err: Error | null, value?: string | Buffer | null, flags?: any) {
 		t.notEqual(null, err)
-		t.equal("This is an expected error.", err.message)
+		t.equal("This is an expected error.", err?.message)
 	}
 
 	client.version(assertor)
@@ -1397,7 +1398,7 @@ test("VersionAllSuccessful", function (t) {
 	const dummyServer3 = makeDummyVersionServer(t, "dummyServer3", "3.0.0")
 
 	const client = makeClient([dummyServer1, dummyServer2, dummyServer3])
-	const assertor = function (err, val) {
+	const assertor =  function (err: Error | null, val?: Record<string, string | Buffer | null> | null) {
 		t.deepEqual(
 			{
 				"dummyServer1:undefined": "1.0.0",
@@ -1425,9 +1426,9 @@ tap.only("VersionAllSomeFailed", function (t) {
 	const dummyServer3 = makeDummyVersionServer(t, "dummyServer3", "3.0.0")
 
 	const client = makeClient([dummyServer1, dummyServer2, dummyServer3])
-	const assertor = function (err) {
+	const assertor = function (err: Error | null) {
 		t.notEqual(null, err)
-		t.equal("This is an expected error.", err.message)
+		t.equal("This is an expected error.", err?.message)
 	}
 
 	client.versionAll(assertor)
