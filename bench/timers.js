@@ -6,10 +6,10 @@
  * Check how fast various timers are in node.
  */
 
-var Benchmark = require('benchmark');
-var Microtime = require('microtime');
+const Benchmark = require('benchmark');
+const Microtime = require('microtime');
 
-var suite = new Benchmark.Suite();
+const suite = new Benchmark.Suite();
 
 // add tests
 suite.add('Date.now()', function() {
@@ -26,12 +26,12 @@ suite.add('Date.now()', function() {
   })
   .add('process.hrtime() ms-round', function() {
   // monotonic, ns (returns: [seconds, nanoseconds])
-    var time = process.hrtime();
+    const time = process.hrtime();
     return (time[0] * 1000) + Math.round(time[1] / 1000000);
   })
   .add('process.hrtime() ms-floor', function() {
   // monotonic, ns (returns: [seconds, nanoseconds])
-    var time = process.hrtime();
+    const time = process.hrtime();
     return (time[0] * 1000) + Math.floor(time[1] / 1000000);
   })
 // add listeners
