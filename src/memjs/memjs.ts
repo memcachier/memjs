@@ -195,7 +195,7 @@ class Client<Value, Extras> {
    * @param  {string} serverKey
    * @returns {Server}
    */
-  serverKeyToServer(serverKey: string) {
+  serverKeyToServer(serverKey: string): Server {
     return this.serverMap[serverKey];
   }
 
