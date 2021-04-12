@@ -95,7 +95,7 @@ export type GetMultiResult<
   Value = MaybeBuffer,
   Extras = MaybeBuffer
 > = {
-  [K in Keys]: GetResult<Value, Extras>;
+  [K in Keys]?: GetResult<Value, Extras>;
 };
 
 class Client<Value = MaybeBuffer, Extras = MaybeBuffer> {

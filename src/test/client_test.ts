@@ -345,6 +345,7 @@ test("GetMultiSuccessful_MultiBackend", function (t) {
       },
     };
     t.deepEqual(expected, val);
+    console.log(val);
     t.equal(null, err);
   };
   client.getMulti(["hello1", "hello2", "hello3", "hello4"], assertor);
@@ -384,19 +385,19 @@ test("GetMultiSuccessful_MissingKeys_MultiBackend", function (t) {
     err: Error | null,
     val: MemJS.GetMultiResult | null
   ) {
-    const expected: MemJS.GetMultiResult<"hello1" | "hello2" | "hello3"> = {
+    const expected: MemJS.GetMultiResult<"hello1" | "hello3" | "hello4"> = {
       hello1: {
         value: "world1",
         extras: DummyMultiGetFlags,
         cas: undefined,
       },
-      hello2: {
-        value: "world2",
+      hello3: {
+        value: "world3",
         extras: DummyMultiGetFlags,
         cas: undefined,
       },
-      hello3: {
-        value: "world3",
+      hello4: {
+        value: "world4",
         extras: DummyMultiGetFlags,
         cas: undefined,
       },
