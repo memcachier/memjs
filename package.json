@@ -23,7 +23,8 @@
     "lib": "./lib/memjs"
   },
   "scripts": {
-    "test": "tsc && tap  --no-coverage -R spec ./test/*.js ./test/*.ts",
+    "build": "tsc",
+    "test": "tap --no-coverage -R spec ./test/*.js ./test/*.ts",
     "bench": "tsc && NODE_PATH=lib/memjs/ node bench/memjs.js",
     "bench-timers": "tsc && NODE_PATH=lib/memjs/ node bench/timers.js"
   },
