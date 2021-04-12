@@ -2,7 +2,7 @@ import tap from "tap";
 const test = tap.test;
 
 const errors = require("../memjs/protocol").errors;
-import MemJS = require("..");
+import MemJS = require("../memjs/memjs");
 import constants = require("../memjs/constants");
 import { noopSerializer } from "../memjs/noop-serializer";
 import { Header } from "../memjs/header";
