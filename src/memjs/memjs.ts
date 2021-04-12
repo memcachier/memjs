@@ -204,7 +204,7 @@ class Client<Value, Extras> {
    * hashing function) which can be used to index this.serverMap
    *
    * @param  {string} key
-   * * @returns {string}
+   * @returns {string}
    */
   lookupKeyToServerKey(key: string) {
     return this.options.keyToServerHashFunction(this.serverKeys, key);
