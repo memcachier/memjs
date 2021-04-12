@@ -26,7 +26,7 @@ import * as constants from "./constants";
 import * as Utils from "./utils";
 import * as Header from "./header";
 
-function defaultKeyToServerHashFunction(servers: string[], key: string) {
+function defaultKeyToServerHashFunction(servers: string[], key: string): string {
   const total = servers.length;
   const index = total > 1 ? hashCode(key) % total : 0;
   return servers[index];
