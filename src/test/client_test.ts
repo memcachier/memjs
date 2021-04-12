@@ -541,12 +541,14 @@ test("GetMultiError", function (t) {
 });
 
 test("SetSuccessful", function (t) {
+  const casToken = Buffer.from("cas toke");
   let n = 0;
   const dummyServer = makeDummyServer("dummyServer");
   dummyServer.write = function (requestBuf) {
     const request = parseMessage(requestBuf);
     t.equal("hello", request.key.toString());
     t.equal("world", request.val.toString());
+    t.equal("cas toke", request.header.cas && request.header.cas.toString());
     n += 1;
     dummyServer.respond({
       header: { status: 0, opaque: request.header.opaque },
@@ -559,11 +561,13 @@ test("SetSuccessful", function (t) {
     t.equal(null, err);
     t.equal(1, n, "Ensure set is called");
   };
-  client.set("hello", "world", {}, assertor);
+  client.set("hello", "world", { cas: casToken }, assertor);
   n = 0;
-  return client.set("hello", "world", {}).then(function (success) {
-    assertor(null, success);
-  });
+  return client
+    .set("hello", "world", { cas: casToken })
+    .then(function (success) {
+      assertor(null, success);
+    });
 });
 
 test("SetSuccessfulWithoutOption", function (t) {
