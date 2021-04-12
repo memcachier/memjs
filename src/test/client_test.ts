@@ -1,7 +1,6 @@
 import tap from "tap";
 const test = tap.test;
 
-const errors = require("../memjs/protocol").errors;
 import MemJS = require("../memjs/memjs");
 import constants = require("../memjs/constants");
 import { noopSerializer } from "../memjs/noop-serializer";
@@ -652,7 +651,7 @@ test("SetUnsuccessful", function (t) {
   const client = makeClient([dummyServer]);
   const assertor = function (err: Error | null, val: boolean | null) {
     t.equal(null, val);
-    t.equal("MemJS SET: " + errors[3], err?.message);
+    t.equal("MemJS SET: " + constants.responseStatusToString(3), err?.message);
     t.equal(1, n, "Ensure set is called");
   };
   client.set("hello", "world", {}, assertor);
@@ -800,7 +799,7 @@ test("SetSerialize", function (t) {
   });
   const assertor = function (err: Error | null, val: boolean | null) {
     t.equal(null, val);
-    t.equal("MemJS SET: " + errors[3], err?.message);
+    t.equal("MemJS SET: " + constants.responseStatusToString(3), err?.message);
     t.equal(1, n, "Ensure set is called");
     t.equal(1, sn, "Ensure serialization is called once");
   };
@@ -1145,29 +1144,31 @@ test("IncrementSuccessful", function (t) {
   };
 
   const client = makeClient([dummyServer]);
-  client.increment("number-increment-test", 5, {}, function (
-    err: Error | null,
-    success,
-    val
-  ) {
-    callbn += 1;
-    t.equal(true, success);
-    t.equal(6, val);
-    t.equal(null, err);
-    done();
-  });
+  client.increment(
+    "number-increment-test",
+    5,
+    {},
+    function (err: Error | null, success, val) {
+      callbn += 1;
+      t.equal(true, success);
+      t.equal(6, val);
+      t.equal(null, err);
+      done();
+    }
+  );
 
-  client.increment("number-increment-test", 5, { initial: 3 }, function (
-    err: Error | null,
-    success,
-    val
-  ) {
-    callbn += 1;
-    t.equal(true, success);
-    t.equal(6, val);
-    t.equal(null, err);
-    done();
-  });
+  client.increment(
+    "number-increment-test",
+    5,
+    { initial: 3 },
+    function (err: Error | null, success, val) {
+      callbn += 1;
+      t.equal(true, success);
+      t.equal(6, val);
+      t.equal(null, err);
+      done();
+    }
+  );
 
   const done = (function () {
     let called = 0;
@@ -1206,17 +1207,18 @@ test("DecrementSuccessful", function (t) {
   };
 
   const client = makeClient([dummyServer]);
-  client.decrement("number-decrement-test", 5, {}, function (
-    err: Error | null,
-    success,
-    val
-  ) {
-    t.equal(true, success);
-    t.equal(6, val);
-    t.equal(null, err);
-    t.equal(1, n, "Ensure decr is called");
-    t.end();
-  });
+  client.decrement(
+    "number-decrement-test",
+    5,
+    {},
+    function (err: Error | null, success, val) {
+      t.equal(true, success);
+      t.equal(6, val);
+      t.equal(null, err);
+      t.equal(1, n, "Ensure decr is called");
+      t.end();
+    }
+  );
 });
 
 test("DecrementSuccessfulWithoutOption", function (t) {
@@ -1244,17 +1246,18 @@ test("DecrementSuccessfulWithoutOption", function (t) {
   };
 
   const client = makeClient([dummyServer]);
-  client.decrement("number-decrement-test", 5, {}, function (
-    err: Error | null,
-    success,
-    val
-  ) {
-    t.equal(true, success);
-    t.equal(6, val);
-    t.equal(null, err);
-    t.equal(1, n, "Ensure decr is called");
-    t.end();
-  });
+  client.decrement(
+    "number-decrement-test",
+    5,
+    {},
+    function (err: Error | null, success, val) {
+      t.equal(true, success);
+      t.equal(6, val);
+      t.equal(null, err);
+      t.equal(1, n, "Ensure decr is called");
+      t.end();
+    }
+  );
 });
 
 test("AppendSuccessful", function (t) {
@@ -1478,9 +1481,8 @@ test("VersionSuccessful", function (t) {
   };
 
   const client = makeClient([dummyServer]);
-  const assertor = function (err: Error | null, val: any, flags: string) {
+  const assertor = function (err: Error | null, val: any) {
     t.equal("1.3.1", val);
-    t.equal("flagshere", flags);
     t.equal(null, err);
     t.equal(n, 1, "Ensure version is called");
   };
@@ -1489,7 +1491,7 @@ test("VersionSuccessful", function (t) {
   n = 0;
 
   return client.version().then(function (res) {
-    assertor(null, res.value, res.flags);
+    assertor(null, res.value);
   });
 });
 

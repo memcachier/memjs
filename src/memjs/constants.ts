@@ -300,12 +300,69 @@ export type OP =
   | typeof OP_GET_CTRL_TOKEN
   | typeof OP_INIT_COMPLETE;
 
-// Named "No Error" in the memcache docs but this seems like it will be clearer
-export const RESPONSE_STATUS_SUCCCESS = 0x00;
-export const RESPONSE_STATUS_KEY_NOT_FOUND = 0x01;
-export const RESPONSE_STATUS_KEY_EXISTS = 0x02;
+/**
+ * Response statuses
+ * https://github.com/memcached/memcached/wiki/BinaryProtocolRevamped#response-status
+ */
+export const ResponseStatus = {
+  /** Named "No error" in the memcached docs, but clearer in code as "SUCCESS". */
+  SUCCESS: 0x0000,
+  KEY_NOT_FOUND: 0x0001,
+  KEY_EXISTS: 0x0002,
+  VALUE_TOO_LARGE: 0x0003,
+  INVALID_ARGUMENTS: 0x0004,
+  ITEM_NOT_STORED: 0x0005,
+  INCR_DECR_ON_NON_NUMERIC_VALUE: 0x0006,
+  THE_VBUCKET_BELONGS_TO_ANOTHER_SERVER: 0x0007,
+  AUTHENTICATION_ERROR: 0x0008,
+  AUTHENTICATION_CONTINUE: 0x0009,
+  UNKNOWN_COMMAND: 0x0081,
+  OUT_OF_MEMORY: 0x0082,
+  NOT_SUPPORTED: 0x0083,
+  INTERNAL_ERROR: 0x0084,
+  BUSY: 0x0085,
+  TEMPORARY_FAILURE: 0x0086,
+} as const;
 
-export type ResponseStatus =
-  | typeof RESPONSE_STATUS_SUCCCESS
-  | typeof RESPONSE_STATUS_KEY_NOT_FOUND
-  | typeof RESPONSE_STATUS_KEY_EXISTS;
+export type ResponseStatus = typeof ResponseStatus[keyof typeof ResponseStatus];
+
+export function responseStatusToString(
+  responseStatus: ResponseStatus | undefined
+) {
+  switch (responseStatus) {
+    case 0x0000:
+      return "No error";
+    case 0x0001:
+      return "Key not found";
+    case 0x0002:
+      return "Key exists";
+    case 0x0003:
+      return "Value too large";
+    case 0x0004:
+      return "Invalid arguments";
+    case 0x0005:
+      return "Item not stored";
+    case 0x0006:
+      return "Incr/Decr on non-numeric value";
+    case 0x0007:
+      return "The vbucket belongs to another server";
+    case 0x0008:
+      return "Authentication error";
+    case 0x0009:
+      return "Authentication continue";
+    case 0x0081:
+      return "Unknown command";
+    case 0x0082:
+      return "Out of memory";
+    case 0x0083:
+      return "Not supported";
+    case 0x0084:
+      return "Internal error";
+    case 0x0085:
+      return "Busy";
+    case 0x0086:
+      return "Temporary failure";
+    default:
+      return `Unknown response status ${responseStatus}`;
+  }
+}
