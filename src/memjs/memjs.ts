@@ -1,4 +1,4 @@
-// # MemJS Memcache Client
+// MemTS Memcache Client
 
 import { errors, UNKNOWN_ERROR } from "./protocol";
 import {
