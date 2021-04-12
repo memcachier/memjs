@@ -33,7 +33,7 @@ export function fromBuffer(headerBuf: Buffer): Header {
 }
 
 /** toBuffer converts a JS memcache header object to a binary memcache header */
-export function toBuffer(header: Header) {
+export function toBuffer(header: Header): Buffer {
   const headerBuf = Buffer.alloc(24);
   headerBuf.fill(0);
   headerBuf.writeUInt8(header.magic, 0);
