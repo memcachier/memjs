@@ -1,3 +1,4 @@
+#! node --inspect
 const MemJS = require(".");
 const client = MemJS.Client.create();
 
