@@ -12,7 +12,7 @@ pids
 logs
 results
 build/
-lib/
+lib/test
 
 node_modules
 npm-debug.log

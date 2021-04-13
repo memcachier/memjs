@@ -16,7 +16,7 @@
     "url": "git://github.com/memcachier/memjs.git"
   },
   "engines": {
-    "node": ">=0.10.0"
+    "node": ">=12"
   },
   "main": "./lib/memjs/memjs",
   "directories": {
@@ -26,7 +26,8 @@
     "tsc": "rm -rf ./lib && tsc",
     "test": "npm run-script tsc && tap --no-coverage -R spec ./lib/test/*.js",
     "bench": "npm run-script tsc && NODE_PATH=lib/memjs/ node bench/memjs.js",
-    "bench-timers": "npm run-script tsc && NODE_PATH=lib/memjs/ node bench/timers.js"
+    "bench-timers": "npm run-script tsc && NODE_PATH=lib/memjs/ node bench/timers.js",
+    "ensure-clean": "npm run-script tsc && bin/ensure-clean.sh"
   },
   "devDependencies": {
     "@types/node": "12.20.7",
