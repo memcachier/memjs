@@ -234,75 +234,26 @@ class Client<Value = MaybeBuffer, Extras = MaybeBuffer> {
     return this.options.keyToServerHashFunction(this.serverKeys, key);
   }
 
-  // ## Memcache Commands
-  //
-  // All commands return their results through a callback passed as the last
-  // required argument (some commands, like `Client#set`, take optional arguments
-  // after the callback).
-  //
-  // The callback signature always follows:
-  //
-  //     callback(err, [arg1[, arg2[, arg3[...]]]])
-  //
-  // In case of an error the _err_ argument will be non-null and contain the
-  // `Error`. A notable exception includes a `Client#get` on a key that doesn't
-  // exist. In this case, _err_ will be null, as will the _value and _extras_
-  // arguments.
-
   /**
    * Retrieves the value at the given key in memcache.
    */
-  get(key: string): Promise<GetResult<Value, Extras> | null>;
-  get(
-    key: string,
-    callback: (
-      error: Error | null,
-      result: GetResult<Value, Extras> | null
-    ) => void
-  ): void;
-  get(
-    key: string,
-    callback?: (
-      error: Error | null,
-      result: GetResult<Value, Extras> | null
-    ) => void
-  ): Promise<GetResult<Value, Extras> | null> | void {
-    if (callback === undefined) {
-      return promisify((callback) => {
-        this.get(key, function (err, value) {
-          callback(err, value);
-        });
-      });
-    }
+  async get(key: string): Promise<GetResult<Value, Extras> | null> {
     this.incrSeq();
     const request = makeRequestBuffer(constants.OP_GET, key, "", "", this.seq);
-    this.perform(key, request, this.seq, (err, response) => {
-      if (err) {
-        if (callback) {
-          callback(err, null);
-        }
-        return;
-      }
-      switch (response!.header.status) {
-        case ResponseStatus.SUCCESS:
-          if (callback) {
-            const deserialized = this.serializer.deserialize(
-              response!.header.opcode,
-              response!.val,
-              response!.extras
-            );
-            callback(null, { ...deserialized, cas: response!.header.cas });
-          }
-          break;
-        case ResponseStatus.KEY_NOT_FOUND:
-          if (callback) {
-            callback(null, null);
-          }
-          break;
-        default:
-          this.handleResponseError("GET", response?.header?.status, callback);
-      }
-    });
+    const response = await this.perform(key, request, this.seq);
+    switch (response.header.status) {
+      case ResponseStatus.SUCCESS:
+        const deserialized = this.serializer.deserialize(
+          response.header.opcode,
+          response.val,
+          response.extras
+        );
+        return { ...deserialized, cas: response.header.cas };
+      case ResponseStatus.KEY_NOT_FOUND:
+        return null;
+      default:
+        throw this.createAndLogError("GET", response.header.status);
+    }
   }
 
   /** Build a pipelined get multi request by sending one GETKQ for each key (quiet, meaning it won't respond if the value is missing) followed by a no-op to force a response (and to give us a sentinel response that the pipeline is done)
@@ -346,85 +297,57 @@ class Client<Value = MaybeBuffer, Extras = MaybeBuffer> {
   }
 
   /** Executing a pipelined (multi) get against a single server. This is a private implementation detail of getMulti. */
-  _getMultiToServer<Keys extends string>(
+  async _getMultiToServer<Keys extends string>(
     serv: Server,
-    keys: Keys[],
-    callback: (
-      error: Error | null,
-      values: GetMultiResult<Keys, Value, Extras> | null
-    ) => void
-  ) {
-    const responseMap: GetMultiResult<string, Value, Extras> = {};
+    keys: Keys[]
+  ): Promise<GetMultiResult<Keys, Value, Extras>> {
+    return new Promise((resolve, reject) => {
+      const responseMap: GetMultiResult<string, Value, Extras> = {};
 
-    const handle: OnResponseCallback = (response) => {
-      switch (response.header.status) {
-        case ResponseStatus.SUCCESS:
-          if (callback) {
-            const deserialized = this.serializer.deserialize(
-              response.header.opcode,
-              response.val,
-              response.extras
-            );
+      const handle: OnResponseCallback = (response) => {
+        switch (response.header.status) {
+          case ResponseStatus.SUCCESS:
             // When we get the no-op response, we are done with this one getMulti in the per-backend fan-out
             if (response.header.opcode === constants.OP_NO_OP) {
               // This ensures the handler will be deleted from the responseCallbacks map in server.js
               // This isn't technically needed here because the logic in server.js also checks if totalBodyLength === 0, but our unittests aren't great about setting that field, and also this makes it more explicit
               handle.quiet = false;
-              callback(null, responseMap);
+              resolve(responseMap);
             } else {
+              const deserialized = this.serializer.deserialize(
+                response.header.opcode,
+                response.val,
+                response.extras
+              );
               const key = response.key.toString();
               responseMap[key] = { ...deserialized, cas: response.header.cas };
             }
-          }
-          break;
-        default:
-          this.handleResponseError("GET", response.header.status, callback);
-      }
-    };
-    // This prevents the handler from being deleted
-    // after the first response. Logic in server.js.
-    handle.quiet = true;
+            break;
+          default:
+            return reject(
+              this.createAndLogError("GET", response.header.status)
+            );
+        }
+      };
+      // This prevents the handler from being deleted
+      // after the first response. Logic in server.js.
+      handle.quiet = true;
 
-    const request = this._buildGetMultiRequest(keys);
-    serv.onResponse(this.seq, handle);
-    serv.onError(this.seq, function (err) {
-      if (callback) {
-        callback(err, null);
-      }
+      const request = this._buildGetMultiRequest(keys);
+      serv.onResponse(this.seq, handle);
+      serv.onError(this.seq, reject);
+      this.incrSeq();
+      serv.write(request);
     });
-    this.incrSeq();
-    serv.write(request);
   }
 
   /**
    * Retrievs the value at the given keys in memcached. Returns a map from the
    * requested keys to results, or null if the key was not found.
    */
-  getMulti<Keys extends string>(
+  async getMulti<Keys extends string>(
     keys: Keys[]
-  ): Promise<GetMultiResult<Keys, Value, Extras> | null>;
-  getMulti<Keys extends string>(
-    keys: Keys[],
-    callback: (
-      error: Error | null,
-      value: GetMultiResult<Keys, Value, Extras> | null
-    ) => void
-  ): void;
-  getMulti<Keys extends string>(
-    keys: Keys[],
-    callback?: (
-      error: Error | null,
-      value: GetMultiResult<Keys, Value, Extras> | null
-    ) => void
-  ): Promise<GetMultiResult<Keys, Value, Extras> | null> | void {
-    if (callback === undefined) {
-      return promisify((callback) => {
-        this.getMulti(keys, function (err, value) {
-          callback(err, value);
-        });
-      });
-    }
-
+  ): Promise<GetMultiResult<Keys, Value, Extras> | null> {
     const serverKeytoLookupKeys: {
       [serverKey: string]: string[];
     } = {};
@@ -437,114 +360,59 @@ class Client<Value = MaybeBuffer, Extras = MaybeBuffer> {
     });
 
     const usedServerKeys = Object.keys(serverKeytoLookupKeys);
-    let outstandingCalls = usedServerKeys.length;
-    const recordMap: GetMultiResult<string, Value, Extras> = {};
-    let hadError = false;
-    function latchCallback(
-      err: Error | null,
-      values: GetMultiResult<string, Value, Extras> | null
-    ) {
-      if (hadError) {
-        return;
-      }
+    const results = await Promise.all(
+      usedServerKeys.map((serverKey) => {
+        const server = this.serverKeyToServer(serverKey);
+        return this._getMultiToServer(server, serverKeytoLookupKeys[serverKey]);
+      })
+    );
 
-      if (err) {
-        hadError = true;
-        callback!(err, null);
-        return;
-      }
-
-      merge(recordMap, values);
-      outstandingCalls -= 1;
-      if (outstandingCalls === 0) {
-        callback!(null, recordMap);
-      }
-    }
-
-    for (const serverKeyIndex in usedServerKeys) {
-      const serverKey = usedServerKeys[serverKeyIndex];
-      const server = this.serverKeyToServer(serverKey);
-      this._getMultiToServer(
-        server,
-        serverKeytoLookupKeys[serverKey],
-        latchCallback
-      );
-    }
+    return Object.assign({}, ...results);
   }
 
   /**
-   * Sets the given _key_ to _value_.
+   * Sets `key` to `value`.
    */
-  set(
+  async set(
     key: string,
     value: Value,
     options?: { expires?: number; cas?: CASToken }
-  ): Promise<boolean | null>;
-  set(
-    key: string,
-    value: Value,
-    options: { expires?: number; cas?: CASToken },
-    callback: (error: Error | null, success: boolean | null) => void
-  ): void;
-  set(
-    key: string,
-    value: Value,
-    options: { expires?: number; cas?: CASToken },
-    callback?: (error: Error | null, success: boolean | null) => void
-  ): Promise<boolean | null> | void {
-    if (callback === undefined && typeof options !== "function") {
-      if (!options) options = {};
-      return promisify((callback) => {
-        this.set(key, value, options, function (err, success) {
-          callback(err, success);
-        });
-      });
-    }
-
-    const expires = options.expires;
+  ): Promise<boolean | null> {
+    const expires = options?.expires;
+    const cas = options?.cas;
 
     // TODO: support flags
     this.incrSeq();
     const expiration = makeExpiration(expires || this.options.expires);
     const extras = Buffer.concat([Buffer.from("00000000", "hex"), expiration]);
-
-    const opcode: constants.OP = 1;
-    const serialized = this.serializer.serialize(opcode, value, extras);
-
+    const serialized = this.serializer.serialize(
+      constants.OP_SET,
+      value,
+      extras
+    );
     const request = Utils.encodeRequest({
       header: {
         opcode: constants.OP_SET,
         opaque: this.seq,
-        cas: options.cas,
+        cas,
       },
       key,
       value: serialized.value,
       extras: serialized.extras,
     });
-    this.perform(key, request, this.seq, (err, response) => {
-      if (err) {
-        if (callback) {
-          callback(err, null);
+    const response = await this.perform(key, request, this.seq);
+    switch (response.header.status) {
+      case ResponseStatus.SUCCESS:
+        return true;
+      case ResponseStatus.KEY_EXISTS:
+        if (cas) {
+          return false;
+        } else {
+          throw this.createAndLogError("SET", response.header.status);
         }
-        return;
-      }
-      switch (response!.header.status) {
-        case ResponseStatus.SUCCESS:
-          if (callback) {
-            callback(null, true);
-          }
-          break;
-        case ResponseStatus.KEY_EXISTS:
-          if (options.cas) {
-            if (callback) {
-              callback(null, false);
-            }
-            break;
-          }
-        default:
-          this.handleResponseError("SET", response!.header.status, callback);
-      }
-    });
+      default:
+        throw this.createAndLogError("SET", response.header.status);
+    }
   }
 
   /**
@@ -556,54 +424,18 @@ class Client<Value = MaybeBuffer, Extras = MaybeBuffer> {
    * The options dictionary takes:
    * * _expires_: overrides the default expiration (see `Client.create`) for this
    *              particular key-value pair.
-   *
-   * The callback signature is:
-   *
-   *     callback(err, success)
-   * @param key
-   * @param value
-   * @param options
-   * @param callback
    */
-  add(
+  async add(
     key: string,
     value: Value,
     options?: { expires?: number }
-  ): Promise<boolean | null>;
-  add(
-    key: string,
-    value: Value,
-    options: { expires?: number },
-    callback: (error: Error | null, success: boolean | null) => void
-  ): void;
-  add(
-    key: string,
-    value: Value,
-    options?: { expires?: number },
-    callback?: (error: Error | null, success: boolean | null) => void
-  ): Promise<boolean | null> | void {
-    if (callback === undefined && options !== "function") {
-      if (!options) options = {};
-      return promisify((callback) => {
-        this.add(
-          key,
-          value,
-          options as { expires?: number },
-          function (err, success) {
-            callback(err, success);
-          }
-        );
-      });
-    }
-
+  ): Promise<boolean | null> {
     // TODO: support flags, support version (CAS)
     this.incrSeq();
-    const expiration = makeExpiration(
-      (options || {}).expires || this.options.expires
-    );
+    const expiration = makeExpiration(options?.expires || this.options.expires);
     const extras = Buffer.concat([Buffer.from("00000000", "hex"), expiration]);
 
-    const opcode: constants.OP = 2;
+    const opcode = constants.OP_ADD;
     const serialized = this.serializer.serialize(opcode, value, extras);
     const request = makeRequestBuffer(
       opcode,
@@ -612,80 +444,33 @@ class Client<Value = MaybeBuffer, Extras = MaybeBuffer> {
       serialized.value,
       this.seq
     );
-    this.perform(key, request, this.seq, (err, response) => {
-      if (err) {
-        if (callback) {
-          callback(err, null);
-        }
-        return;
-      }
-      switch (response!.header.status) {
-        case ResponseStatus.SUCCESS:
-          if (callback) {
-            callback(null, true);
-          }
-          break;
-        case ResponseStatus.KEY_EXISTS:
-          if (callback) {
-            callback(null, false);
-          }
-          break;
-        default:
-          return this.handleResponseError(
-            "ADD",
-            response?.header?.status,
-            callback
-          );
-      }
-    });
+    const response = await this.perform(key, request, this.seq);
+    switch (response.header.status) {
+      case ResponseStatus.SUCCESS:
+        return true;
+      case ResponseStatus.KEY_EXISTS:
+        return false;
+        break;
+      default:
+        throw this.createAndLogError("ADD", response.header.status);
+    }
   }
 
   /**
-   * REPLACE
-   *
    * Replaces the given _key_ and _value_ to memcache. The operation only succeeds
    * if the key is already present.
-   *
-   * The options dictionary takes:
-   * * _expires_: overrides the default expiration (see `Client.create`) for this
-   *              particular key-value pair.
-   *
-   * The callback signature is:
-   *
-   *     callback(err, success)
-   * @param key
-   * @param value
-   * @param options
-   * @param callback
    */
-  replace(
+  async replace(
     key: string,
     value: Value,
-    options?: { expires?: number },
-    callback?: (error: Error | null, success: boolean | null) => void
-  ): Promise<boolean | null> | void {
-    if (callback === undefined && options !== "function") {
-      if (!options) options = {};
-      return promisify((callback) => {
-        this.replace(
-          key,
-          value,
-          options as { expires?: number },
-          function (err, success) {
-            callback(err, success);
-          }
-        );
-      });
-    }
-
+    options?: { expires?: number }
+  ): Promise<boolean | null> {
     // TODO: support flags, support version (CAS)
     this.incrSeq();
-    const expiration = makeExpiration(
-      (options || {}).expires || this.options.expires
-    );
+    const expiration = makeExpiration(options?.expires || this.options.expires);
     const extras = Buffer.concat([Buffer.from("00000000", "hex"), expiration]);
 
-    const opcode: constants.OP = 3;
+    const opcode: constants.OP = constants.OP_REPLACE;
     const serialized = this.serializer.serialize(opcode, value, extras);
     const request = makeRequestBuffer(
       opcode,
@@ -694,145 +479,49 @@ class Client<Value = MaybeBuffer, Extras = MaybeBuffer> {
       serialized.value,
       this.seq
     );
-    this.perform(key, request, this.seq, (err, response) => {
-      if (err) {
-        if (callback) {
-          callback(err, null);
-        }
-        return;
-      }
-      switch (response!.header.status) {
-        case ResponseStatus.SUCCESS:
-          if (callback) {
-            callback(null, true);
-          }
-          break;
-        case ResponseStatus.KEY_NOT_FOUND:
-          if (callback) {
-            callback(null, false);
-          }
-          break;
-        default:
-          this.handleResponseError(
-            "REPLACE",
-            response?.header?.status,
-            callback
-          );
-      }
-    });
+    const response = await this.perform(key, request, this.seq);
+    switch (response.header.status) {
+      case ResponseStatus.SUCCESS:
+        return true;
+      case ResponseStatus.KEY_NOT_FOUND:
+        return false;
+      default:
+        throw this.createAndLogError("REPLACE", response.header.status);
+    }
   }
 
   /**
-   * DELETE
-   *
    * Deletes the given _key_ from memcache. The operation only succeeds
    * if the key is already present.
-   *
-   * The callback signature is:
-   *
-   *     callback(err, success)
-   * @param key
-   * @param callback
    */
-  delete(key: string): Promise<boolean>;
-  delete(
-    key: string,
-    callback: (err: Error | null, success: boolean | null) => void
-  ): void;
-  delete(
-    key: string,
-    callback?: (err: Error | null, success: boolean | null) => void
-  ): Promise<boolean> | void {
-    if (callback === undefined) {
-      return promisify((callback) => {
-        this.delete(key, function (err, success) {
-          callback(err, Boolean(success));
-        });
-      });
-    }
+  async delete(key: string): Promise<boolean> {
     // TODO: Support version (CAS)
     this.incrSeq();
     const request = makeRequestBuffer(4, key, "", "", this.seq);
-    this.perform(key, request, this.seq, (err, response) => {
-      if (err) {
-        if (callback) {
-          callback(err, null);
-        }
-        return;
-      }
-      switch (response!.header.status) {
-        case ResponseStatus.SUCCESS:
-          if (callback) {
-            callback(null, true);
-          }
-          break;
-        case ResponseStatus.KEY_NOT_FOUND:
-          if (callback) {
-            callback(null, false);
-          }
-          break;
-        default:
-          this.handleResponseError("DELETE", response?.header.status, callback);
-      }
-    });
+    const response = await this.perform(key, request, this.seq);
+
+    switch (response.header.status) {
+      case ResponseStatus.SUCCESS:
+        return true;
+      case ResponseStatus.KEY_NOT_FOUND:
+        return false;
+      default:
+        throw this.createAndLogError("DELETE", response?.header.status);
+    }
   }
 
   /**
-   * INCREMENT
-   *
    * Increments the given _key_ in memcache.
-   *
-   * The options dictionary takes:
-   * * _initial_: the value for the key if not already present, defaults to 0.
-   * * _expires_: overrides the default expiration (see `Client.create`) for this
-   *              particular key-value pair.
-   *
-   * The callback signature is:
-   *
-   *     callback(err, success, value)
-   * @param key
-   * @param amount
-   * @param options
-   * @param callback
    */
-  increment(
+  async increment(
     key: string,
     amount: number,
-    options: { initial?: number; expires?: number }
-  ): Promise<{ value: number | null; success: boolean | null }>;
-  increment(
-    key: string,
-    amount: number,
-    options: { initial?: number; expires?: number },
-    callback: (
-      error: Error | null,
-      success: boolean | null,
-      value?: number | null
-    ) => void
-  ): void;
-  increment(
-    key: string,
-    amount: number,
-    options: { initial?: number; expires?: number },
-    callback?: (
-      error: Error | null,
-      success: boolean | null,
-      value?: number | null
-    ) => void
-  ): Promise<{ value: number | null; success: boolean | null }> | void {
-    if (callback === undefined && options !== "function") {
-      return promisify((callback) => {
-        if (!options) options = {};
-        this.increment(key, amount, options, function (err, success, value) {
-          callback(err, { success: success, value: value || null });
-        });
-      });
-    }
-
+    options?: { initial?: number; expires?: number }
+  ): Promise<{ value: number | null; success: boolean | null }> {
     // TODO: support version (CAS)
     this.incrSeq();
-    const initial = options.initial || 0;
-    const expires = options.expires || this.options.expires;
+    const initial = options?.initial || 0;
+    const expires = options?.expires || this.options.expires;
     const extras = makeAmountInitialAndExpiration(amount, initial, expires);
     const request = makeRequestBuffer(
       constants.OP_INCREMENT,
@@ -841,79 +530,25 @@ class Client<Value = MaybeBuffer, Extras = MaybeBuffer> {
       "",
       this.seq
     );
-    this.perform(key, request, this.seq, (err, response) => {
-      if (err) {
-        if (callback) {
-          callback(err, null);
-        }
-        return;
-      }
-      switch (response!.header.status) {
-        case ResponseStatus.SUCCESS:
-          const bufInt =
-            (response!.val.readUInt32BE(0) << 8) +
-            response!.val.readUInt32BE(4);
-          if (callback) {
-            callback(null, true, bufInt);
-          }
-          break;
-        default:
-          const error = this.handleResponseError(
-            "INCREMENT",
-            response!.header.status,
-            undefined
-          );
-          if (callback) {
-            callback(error, null, null);
-          }
-      }
-    });
+    const response = await this.perform(key, request, this.seq);
+    switch (response.header.status) {
+      case ResponseStatus.SUCCESS:
+        const bufInt =
+          (response.val.readUInt32BE(0) << 8) + response.val.readUInt32BE(4);
+        return { value: bufInt, success: true };
+      default:
+        throw this.createAndLogError("INCREMENT", response.header.status);
+    }
   }
 
-  // DECREMENT
-  //
-  // Decrements the given _key_ in memcache.
-  //
-  // The options dictionary takes:
-  // * _initial_: the value for the key if not already present, defaults to 0.
-  // * _expires_: overrides the default expiration (see `Client.create`) for this
-  //              particular key-value pair.
-  //
-  // The callback signature is:
-  //
-  //     callback(err, success, value)
-  decrement(
+  /**
+   * Decrements the given `key` in memcache.
+   */
+  async decrement(
     key: string,
     amount: number,
     options: { initial?: number; expires?: number }
-  ): Promise<{ value: number | null; success: boolean | null }>;
-  decrement(
-    key: string,
-    amount: number,
-    options: { initial?: number; expires?: number },
-    callback: (
-      error: Error | null,
-      success: boolean | null,
-      value?: number | null
-    ) => void
-  ): void;
-  decrement(
-    key: string,
-    amount: number,
-    options: { initial?: number; expires?: number },
-    callback?: (
-      error: Error | null,
-      success: boolean | null,
-      value?: number | null
-    ) => void
-  ): Promise<{ value: number | null; success: boolean | null }> | void {
-    if (callback === undefined && options !== "function") {
-      return promisify((callback) => {
-        this.decrement(key, amount, options, function (err, success, value) {
-          callback(err, { success: success, value: value || null });
-        });
-      });
-    }
+  ): Promise<{ value: number | null; success: boolean | null }> {
     // TODO: support version (CAS)
     this.incrSeq();
     const initial = options.initial || 0;
@@ -926,65 +561,22 @@ class Client<Value = MaybeBuffer, Extras = MaybeBuffer> {
       "",
       this.seq
     );
-    this.perform(key, request, this.seq, (err, response) => {
-      if (err) {
-        if (callback) {
-          callback(err, null);
-        }
-        return;
-      }
-      switch (response!.header.status) {
-        case ResponseStatus.SUCCESS:
-          const bufInt =
-            (response!.val.readUInt32BE(0) << 8) +
-            response!.val.readUInt32BE(4);
-          if (callback) {
-            callback(null, true, bufInt);
-          }
-          break;
-        default:
-          const error = this.handleResponseError(
-            "DECREMENT",
-            response!.header.status,
-            undefined
-          );
-          if (callback) {
-            callback(error, null, null);
-          }
-      }
-    });
+    const response = await this.perform(key, request, this.seq);
+    switch (response.header.status) {
+      case ResponseStatus.SUCCESS:
+        const bufInt =
+          (response.val.readUInt32BE(0) << 8) + response.val.readUInt32BE(4);
+        return { value: bufInt, success: true };
+      default:
+        throw this.createAndLogError("DECREMENT", response.header.status);
+    }
   }
 
   /**
-   * APPEND
-   *
    * Append the given _value_ to the value associated with the given _key_ in
-   * memcache. The operation only succeeds if the key is already present. The
-   * callback signature is:
-   *
-   *     callback(err, success)
-   * @param key
-   * @param value
-   * @param callback
+   * memcache. The operation only succeeds if the key is already present.
    */
-  append(key: string, value: Value): Promise<boolean>;
-  append(
-    key: string,
-    value: Value,
-    callback: (err: Error | null, success: boolean | null) => void
-  ): void;
-  append(
-    key: string,
-    value: Value,
-    callback?: (err: Error | null, success: boolean | null) => void
-  ) {
-    if (callback === undefined) {
-      return promisify((callback) => {
-        this.append(key, value, function (err, success) {
-          callback(err, success);
-        });
-      });
-    }
+  async append(key: string, value: Value): Promise<boolean> {
     // TODO: support version (CAS)
     this.incrSeq();
     const opcode: constants.OP = constants.OP_APPEND;
@@ -996,63 +588,24 @@ class Client<Value = MaybeBuffer, Extras = MaybeBuffer> {
       serialized.value,
       this.seq
     );
-    this.perform(key, request, this.seq, (err, response) => {
-      if (err) {
-        if (callback) {
-          callback(err, null);
-        }
-        return;
-      }
-      switch (response!.header.status) {
-        case ResponseStatus.SUCCESS:
-          if (callback) {
-            callback(null, true);
-          }
-          break;
-        case ResponseStatus.KEY_NOT_FOUND:
-          if (callback) {
-            callback(null, false);
-          }
-          break;
-        default:
-          this.handleResponseError("APPEND", response!.header.status, callback);
-      }
-    });
+    const response = await this.perform(key, request, this.seq);
+    switch (response.header.status) {
+      case ResponseStatus.SUCCESS:
+        return true;
+      case ResponseStatus.KEY_NOT_FOUND:
+        return false;
+      default:
+        throw this.createAndLogError("APPEND", response.header.status);
+    }
   }
 
   /**
-   * PREPEND
-   *
    * Prepend the given _value_ to the value associated with the given _key_ in
-   * memcache. The operation only succeeds if the key is already present. The
-   * callback signature is:
-   *
-   *     callback(err, success)
-   * @param key
-   * @param value
-   * @param callback
+   * memcache. The operation only succeeds if the key is already present.
    */
-  prepend(key: string, value: Value): Promise<boolean>;
-  prepend(
-    key: string,
-    value: Value,
-    callback: (err: Error | null, success: boolean | null) => void
-  ): void;
-  prepend(
-    key: string,
-    value: Value,
-    callback?: (err: Error | null, success: boolean | null) => void
-  ) {
-    if (callback === undefined) {
-      return promisify((callback) => {
-        this.prepend(key, value, function (err, success) {
-          callback(err, success);
-        });
-      });
-    }
+  async prepend(key: string, value: Value): Promise<boolean> {
     // TODO: support version (CAS)
     this.incrSeq();
-
     const opcode: constants.OP = constants.OP_PREPEND;
     const serialized = this.serializer.serialize(opcode, value, "");
     const request = makeRequestBuffer(
@@ -1062,90 +615,35 @@ class Client<Value = MaybeBuffer, Extras = MaybeBuffer> {
       serialized.value,
       this.seq
     );
-    this.perform(key, request, this.seq, (err, response) => {
-      if (err) {
-        if (callback) {
-          callback(err, null);
-        }
-        return;
-      }
-      switch (response!.header.status) {
-        case ResponseStatus.SUCCESS:
-          if (callback) {
-            callback(null, true);
-          }
-          break;
-        case ResponseStatus.KEY_NOT_FOUND:
-          if (callback) {
-            callback(null, false);
-          }
-          break;
-        default:
-          this.handleResponseError(
-            "PREPEND",
-            response!.header.status,
-            callback
-          );
-      }
-    });
+    const response = await this.perform(key, request, this.seq);
+    switch (response.header.status) {
+      case ResponseStatus.SUCCESS:
+        return true;
+      case ResponseStatus.KEY_NOT_FOUND:
+        return false;
+      default:
+        throw this.createAndLogError("PREPEND", response.header.status);
+    }
   }
 
   /**
-   * TOUCH
-   *
    * Touch sets an expiration value, given by _expires_, on the given _key_ in
-   * memcache. The operation only succeeds if the key is already present. The
-   * callback signature is:
-   *
-   *     callback(err, success)
-   * @param key
-   * @param expires
-   * @param callback
+   * memcache. The operation only succeeds if the key is already present.
    */
-  touch(key: string, expires: number): Promise<boolean>;
-  touch(
-    key: string,
-    expires: number,
-    callback: (err: Error | null, success: boolean | null) => void
-  ): void;
-  touch(
-    key: string,
-    expires: number,
-    callback?: (err: Error | null, success: boolean | null) => void
-  ): Promise<boolean> | void {
-    if (callback === undefined) {
-      return promisify((callback) => {
-        this.touch(key, expires, function (err, success) {
-          callback(err, Boolean(success));
-        });
-      });
-    }
+  async touch(key: string, expires: number): Promise<boolean> {
     // TODO: support version (CAS)
     this.incrSeq();
     const extras = makeExpiration(expires || this.options.expires);
     const request = makeRequestBuffer(0x1c, key, extras, "", this.seq);
-    this.perform(key, request, this.seq, (err, response) => {
-      if (err) {
-        if (callback) {
-          callback(err, null);
-        }
-        return;
-      }
-      switch (response!.header.status) {
-        case ResponseStatus.SUCCESS:
-          if (callback) {
-            callback(null, true);
-          }
-          break;
-        case ResponseStatus.KEY_NOT_FOUND:
-          if (callback) {
-            callback(null, false);
-          }
-          break;
-        default:
-          this.handleResponseError("TOUCH", response!.header.status, callback);
-      }
-    });
+    const response = await this.perform(key, request, this.seq);
+    switch (response.header.status) {
+      case ResponseStatus.SUCCESS:
+        return true;
+      case ResponseStatus.KEY_NOT_FOUND:
+        return false;
+      default:
+        throw this.createAndLogError("TOUCH", response.header.status);
+    }
   }
 
   /**
@@ -1354,111 +852,58 @@ class Client<Value = MaybeBuffer, Extras = MaybeBuffer> {
     }
   }
 
-  _version(server: Server): Promise<{ value: Value | null }>;
-  _version(
-    server: Server,
-    callback: (error: Error | null, value: Value | null) => void
-  ): void;
-  _version(
-    server: Server,
-    callback?: (error: Error | null, value: Value | null) => void
-  ): Promise<{ value: Value | null }> | void {
-    if (callback === undefined) {
-      return promisify((callback) => {
-        this._version(server, function (err, value) {
-          callback(err, { value: value });
-        });
-      });
-    }
-
-    this.incrSeq();
-    const request = makeRequestBuffer(
-      constants.OP_VERSION,
-      "",
-      "",
-      "",
-      this.seq
-    );
-
-    this.performOnServer(server, request, this.seq, (err, response) => {
-      if (err) {
-        if (callback) {
-          callback(err, null);
+  _version(server: Server): Promise<{ value: Value | null }> {
+    return new Promise((resolve, reject) => {
+      this.incrSeq();
+      const request = makeRequestBuffer(
+        constants.OP_VERSION,
+        "",
+        "",
+        "",
+        this.seq
+      );
+      this.performOnServer(server, request, this.seq, (err, response) => {
+        if (err) {
+          return reject(err);
         }
-        return;
-      }
 
-      switch (response!.header.status) {
-        case ResponseStatus.SUCCESS:
-          /* TODO: this is bugged, we should't use the deserializer here, since version always returns a version string.
+        switch (response!.header.status) {
+          case ResponseStatus.SUCCESS:
+            /* TODO: this is bugged, we should't use the deserializer here, since version always returns a version string.
              The deserializer should only be used on user key data. */
-          const deserialized = this.serializer.deserialize(
-            response!.header.opcode,
-            response!.val,
-            response!.extras
-          );
-          callback(null, deserialized.value);
-          break;
-        default:
-          this.handleResponseError(
-            "VERSION",
-            response!.header.status,
-            callback
-          );
-      }
+            const deserialized = this.serializer.deserialize(
+              response!.header.opcode,
+              response!.val,
+              response!.extras
+            );
+            return resolve({ value: deserialized.value });
+          default:
+            return reject(
+              this.createAndLogError("VERSION", response!.header.status)
+            );
+        }
+      });
     });
   }
 
   /**
-   * VERSION
-   *
    * Request the server version from the "first" server in the backend pool.
-   *
    * The server responds with a packet containing the version string in the body with the following format: "x.y.z"
    */
-  version(): Promise<{ value: Value | null }>;
-  version(callback: (error: Error | null, value: Value | null) => void): void;
-  version(callback?: (error: Error | null, value: Value | null) => void) {
+  version(): Promise<{ value: Value | null }> {
     const server = this.serverKeyToServer(this.serverKeys[0]);
-    if (callback) {
-      this._version(server, callback);
-    } else {
-      return this._version(server);
-    }
+    return this._version(server);
   }
 
   /**
-   * VERSION-ALL
-   *
    * Retrieves the server version from all the servers
    * in the backend pool, errors if any one of them has an
    * error
-   *
-   * The callback signature is:
-   *
-   *     callback(err, value, flags)
-   *
-   * @param keys
-   * @param callback
    */
-  versionAll(): Promise<{
+  async versionAll(): Promise<{
     values: Record<string, Value | null>;
-  }>;
-  versionAll(
-    callback: (
-      err: Error | null,
-      values: Record<string, Value | null> | null
-    ) => void
-  ): void;
-  versionAll(
-    callback?: (
-      err: Error | null,
-      values: Record<string, Value | null> | null
-    ) => void
-  ): Promise<{
-    values: Record<string, Value | null>;
-  }> | void {
-    const promise = Promise.all(
+  }> {
+    const versionObjects = await Promise.all(
       this.serverKeys.map((serverKey) => {
         const server = this.serverKeyToServer(serverKey);
 
@@ -1466,30 +911,17 @@ class Client<Value = MaybeBuffer, Extras = MaybeBuffer> {
           return { serverKey: serverKey, value: response.value };
         });
       })
-    ).then((versionObjects) => {
-      const values = versionObjects.reduce((accumulator, versionObject) => {
-        accumulator[versionObject.serverKey] = versionObject.value;
-        return accumulator;
-      }, {} as Record<string, Value | null>);
-      return { values: values };
-    });
-
-    if (callback === undefined) {
-      return promise;
-    }
-    promise
-      .then((response) => {
-        callback(null, response.values);
-      })
-      .catch((err) => {
-        callback(err, null);
-      });
+    );
+    const values = versionObjects.reduce((accumulator, versionObject) => {
+      accumulator[versionObject.serverKey] = versionObject.value;
+      return accumulator;
+    }, {} as Record<string, Value | null>);
+    return { values: values };
   }
 
   /**
-   * CLOSE
-   *
    * Closes (abruptly) connections to all the servers.
+   * @see this.quit
    */
   close() {
     for (let i = 0; i < this.servers.length; i++) {
@@ -1504,27 +936,35 @@ class Client<Value = MaybeBuffer, Extras = MaybeBuffer> {
    * @param {buffer} request a buffer containing the request
    * @param {number} seq the sequence number of the operation. It is used to pin the callbacks
                          to a specific operation and should never change during a `perform`.
-   * @param {*} callback a callback invoked when a response is received or the request fails
-   * @param {*} retries number of times to retry request on failure
+   * @param {number?} retries number of times to retry request on failure
    */
   perform(
     key: string,
     request: Buffer,
     seq: number,
-    callback: ResponseOrErrorCallback,
     retries?: number
-  ) {
-    const serverKey = this.lookupKeyToServerKey(key);
+  ): Promise<Message> {
+    return new Promise((resolve, reject) => {
+      const serverKey = this.lookupKeyToServerKey(key);
+      const server = this.serverKeyToServer(serverKey);
 
-    const server = this.serverKeyToServer(serverKey);
-
-    if (!server) {
-      if (callback) {
-        callback(new Error("No servers available"), null);
+      if (!server) {
+        return reject(new Error("No servers available"));
       }
-      return;
-    }
-    return this.performOnServer(server, request, seq, callback, retries);
+
+      this.performOnServer(
+        server,
+        request,
+        seq,
+        (error, response) => {
+          if (error) {
+            return reject(error);
+          }
+          resolve(response!);
+        },
+        retries
+      );
+    });
   }
 
   performOnServer(
@@ -1581,6 +1021,17 @@ class Client<Value = MaybeBuffer, Extras = MaybeBuffer> {
     this.seq &= 0xffffffff;
   }
 
+  private createAndLogError(
+    commandName: string,
+    responseStatus: ResponseStatus | undefined
+  ): Error {
+    const errorMessage = `MemJS ${commandName}: ${constants.responseStatusToString(
+      responseStatus
+    )}`;
+    this.options.logger.log(errorMessage);
+    return new Error(errorMessage);
+  }
+
   /**
    * Log an error to the logger, then return the error.
    * If a callback is given, call it with callback(error, null).
@@ -1590,11 +1041,7 @@ class Client<Value = MaybeBuffer, Extras = MaybeBuffer> {
     responseStatus: ResponseStatus | undefined,
     callback: undefined | ((error: Error | null, other: null) => void)
   ): Error {
-    const errorMessage = `MemJS ${commandName}: ${constants.responseStatusToString(
-      responseStatus
-    )}`;
-    this.options.logger.log(errorMessage);
-    const error = new Error(errorMessage);
+    const error = this.createAndLogError(commandName, responseStatus);
     if (callback) {
       callback(error, null);
     }
