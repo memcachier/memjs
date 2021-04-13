@@ -374,12 +374,6 @@ class Client<Value = MaybeBuffer, Extras = MaybeBuffer> {
             }
           }
           break;
-        case ResponseStatus.KEY_NOT_FOUND:
-          if (callback) {
-            // @blackmad: IS THIS CORRECT???
-            callback(null, null);
-          }
-          break;
         default:
           this.handleResponseError("GET", response.header.status, callback);
       }
