@@ -60,6 +60,9 @@ interface SerializerProp<Value, Extras> {
 }
 
 /**
+ * The client has partial support for serializing and deserializing values from the
+ * Buffer byte strings we recieve from the wire. The default serializer is for MaybeBuffer.
+ *
  * If Value and Extras are of type Buffer, then return type WhenBuffer. Otherwise,
  * return type NotBuffer.
  */
