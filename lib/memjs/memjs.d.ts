@@ -125,7 +125,7 @@ declare class Client<Value = MaybeBuffer, Extras = MaybeBuffer> {
      * Retrievs the value at the given keys in memcached. Returns a map from the
      * requested keys to results, or null if the key was not found.
      */
-    getMulti<Keys extends string>(keys: Keys[]): Promise<GetMultiResult<Keys, Value, Extras> | null>;
+    getMulti<Keys extends string>(keys: Keys[]): Promise<GetMultiResult<Keys, Value, Extras>>;
     /**
      * Sets `key` to `value`.
      */

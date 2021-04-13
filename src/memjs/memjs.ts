@@ -347,7 +347,7 @@ class Client<Value = MaybeBuffer, Extras = MaybeBuffer> {
    */
   async getMulti<Keys extends string>(
     keys: Keys[]
-  ): Promise<GetMultiResult<Keys, Value, Extras> | null> {
+  ): Promise<GetMultiResult<Keys, Value, Extras>> {
     const serverKeytoLookupKeys: {
       [serverKey: string]: string[];
     } = {};
