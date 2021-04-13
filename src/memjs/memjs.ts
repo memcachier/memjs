@@ -498,10 +498,9 @@ class Client<Value = MaybeBuffer, Extras = MaybeBuffer> {
       });
     }
 
-    const logger = this.options.logger;
-    const expires = (options || {}).expires;
+    const expires = options.expires;
 
-    // TODO: support flags, support version (CAS)
+    // TODO: support flags
     this.incrSeq();
     const expiration = makeExpiration(expires || this.options.expires);
     const extras = Buffer.concat([Buffer.from("00000000", "hex"), expiration]);
@@ -538,7 +537,7 @@ class Client<Value = MaybeBuffer, Extras = MaybeBuffer> {
             callback(null, false);
           }
         default:
-          this.handleResponseError("SET", response?.header?.status, callback);
+          this.handleResponseError("SET", response!.header.status, callback);
       }
     });
   }
@@ -591,7 +590,6 @@ class Client<Value = MaybeBuffer, Extras = MaybeBuffer> {
         );
       });
     }
-    const logger = this.options.logger;
 
     // TODO: support flags, support version (CAS)
     this.incrSeq();
@@ -674,7 +672,6 @@ class Client<Value = MaybeBuffer, Extras = MaybeBuffer> {
         );
       });
     }
-    const logger = this.options.logger;
 
     // TODO: support flags, support version (CAS)
     this.incrSeq();
@@ -749,7 +746,6 @@ class Client<Value = MaybeBuffer, Extras = MaybeBuffer> {
       });
     }
     // TODO: Support version (CAS)
-    const logger = this.options.logger;
     this.incrSeq();
     const request = makeRequestBuffer(4, key, "", "", this.seq);
     this.perform(key, request, this.seq, (err, response) => {
@@ -827,7 +823,6 @@ class Client<Value = MaybeBuffer, Extras = MaybeBuffer> {
         });
       });
     }
-    const logger = this.options.logger;
 
     // TODO: support version (CAS)
     this.incrSeq();
@@ -915,8 +910,6 @@ class Client<Value = MaybeBuffer, Extras = MaybeBuffer> {
       });
     }
     // TODO: support version (CAS)
-    const logger = this.options.logger;
-
     this.incrSeq();
     const initial = options.initial || 0;
     const expires = options.expires || this.options.expires;
@@ -988,7 +981,6 @@ class Client<Value = MaybeBuffer, Extras = MaybeBuffer> {
       });
     }
     // TODO: support version (CAS)
-    const logger = this.options.logger;
     this.incrSeq();
     const opcode: constants.OP = constants.OP_APPEND;
     const serialized = this.serializer.serialize(opcode, value, "");
@@ -1054,7 +1046,6 @@ class Client<Value = MaybeBuffer, Extras = MaybeBuffer> {
       });
     }
     // TODO: support version (CAS)
-    const logger = this.options.logger;
     this.incrSeq();
 
     const opcode: constants.OP = constants.OP_PREPEND;
@@ -1125,7 +1116,6 @@ class Client<Value = MaybeBuffer, Extras = MaybeBuffer> {
       });
     }
     // TODO: support version (CAS)
-    const logger = this.options.logger;
     this.incrSeq();
     const extras = makeExpiration(expires || this.options.expires);
     const request = makeRequestBuffer(0x1c, key, extras, "", this.seq);
@@ -1237,7 +1227,6 @@ class Client<Value = MaybeBuffer, Extras = MaybeBuffer> {
       stats: Record<string, string> | null
     ) => void
   ): void {
-    const logger = this.options.logger;
     this.incrSeq();
     const request = makeRequestBuffer(0x10, key, "", "", this.seq);
 
@@ -1385,7 +1374,6 @@ class Client<Value = MaybeBuffer, Extras = MaybeBuffer> {
       "",
       this.seq
     );
-    const logger = this.options.logger;
 
     this.performOnServer(server, request, this.seq, (err, response) => {
       if (err) {
