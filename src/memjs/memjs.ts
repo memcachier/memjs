@@ -538,6 +538,11 @@ class Client<Value = MaybeBuffer, Extras = MaybeBuffer> {
             callback(null, true);
           }
           break;
+        case ResponseStatus.KEY_EXISTS:
+          // CAS failed.
+          if (callback) {
+            callback(null, false);
+          }
         default:
           this.handleResponseError("SET", response?.header?.status, callback);
       }
