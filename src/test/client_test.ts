@@ -635,6 +635,38 @@ test("SetWithExpiration", function (t) {
   });
 });
 
+test("SetCASUnsuccessful", (t) => {
+  let n = 0;
+  const casToken = "verycool";
+  const dummyServer = makeDummyServer("dummyServer");
+  dummyServer.write = function (requestBuf) {
+    const request = parseMessage(requestBuf);
+    t.equal("hello", request.key.toString());
+    t.equal("world", request.val.toString());
+    t.equal(casToken, request.header.cas?.toString());
+    n += 1;
+    dummyServer.respond({
+      header: {
+        status: constants.ResponseStatus.KEY_EXISTS,
+        opaque: request.header.opaque,
+      },
+    });
+  };
+
+  const client = makeClient([dummyServer]);
+  const assertor = function (err: Error | null, val: boolean | null) {
+    t.equal(false, val, "Returns false on CAS failure");
+    t.equal(1, n, "Ensure set is called");
+  };
+  client.set("hello", "world", { cas: Buffer.from(casToken) }, assertor);
+  n = 0;
+  return client
+    .set("hello", "world", { cas: Buffer.from(casToken) })
+    .then(function (val) {
+      assertor(null, val);
+    });
+});
+
 test("SetUnsuccessful", function (t) {
   let n = 0;
   const dummyServer = makeDummyServer("dummyServer");
@@ -1144,31 +1176,29 @@ test("IncrementSuccessful", function (t) {
   };
 
   const client = makeClient([dummyServer]);
-  client.increment(
-    "number-increment-test",
-    5,
-    {},
-    function (err: Error | null, success, val) {
-      callbn += 1;
-      t.equal(true, success);
-      t.equal(6, val);
-      t.equal(null, err);
-      done();
-    }
-  );
+  client.increment("number-increment-test", 5, {}, function (
+    err: Error | null,
+    success,
+    val
+  ) {
+    callbn += 1;
+    t.equal(true, success);
+    t.equal(6, val);
+    t.equal(null, err);
+    done();
+  });
 
-  client.increment(
-    "number-increment-test",
-    5,
-    { initial: 3 },
-    function (err: Error | null, success, val) {
-      callbn += 1;
-      t.equal(true, success);
-      t.equal(6, val);
-      t.equal(null, err);
-      done();
-    }
-  );
+  client.increment("number-increment-test", 5, { initial: 3 }, function (
+    err: Error | null,
+    success,
+    val
+  ) {
+    callbn += 1;
+    t.equal(true, success);
+    t.equal(6, val);
+    t.equal(null, err);
+    done();
+  });
 
   const done = (function () {
     let called = 0;
@@ -1207,18 +1237,17 @@ test("DecrementSuccessful", function (t) {
   };
 
   const client = makeClient([dummyServer]);
-  client.decrement(
-    "number-decrement-test",
-    5,
-    {},
-    function (err: Error | null, success, val) {
-      t.equal(true, success);
-      t.equal(6, val);
-      t.equal(null, err);
-      t.equal(1, n, "Ensure decr is called");
-      t.end();
-    }
-  );
+  client.decrement("number-decrement-test", 5, {}, function (
+    err: Error | null,
+    success,
+    val
+  ) {
+    t.equal(true, success);
+    t.equal(6, val);
+    t.equal(null, err);
+    t.equal(1, n, "Ensure decr is called");
+    t.end();
+  });
 });
 
 test("DecrementSuccessfulWithoutOption", function (t) {
@@ -1246,18 +1275,17 @@ test("DecrementSuccessfulWithoutOption", function (t) {
   };
 
   const client = makeClient([dummyServer]);
-  client.decrement(
-    "number-decrement-test",
-    5,
-    {},
-    function (err: Error | null, success, val) {
-      t.equal(true, success);
-      t.equal(6, val);
-      t.equal(null, err);
-      t.equal(1, n, "Ensure decr is called");
-      t.end();
-    }
-  );
+  client.decrement("number-decrement-test", 5, {}, function (
+    err: Error | null,
+    success,
+    val
+  ) {
+    t.equal(true, success);
+    t.equal(6, val);
+    t.equal(null, err);
+    t.equal(1, n, "Ensure decr is called");
+    t.end();
+  });
 });
 
 test("AppendSuccessful", function (t) {
