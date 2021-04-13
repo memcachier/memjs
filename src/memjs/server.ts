@@ -156,7 +156,7 @@ export class Server extends events.EventEmitter {
     while (response) {
       if (response.header.opcode === 0x20) {
         this.saslAuth();
-      } else if (response.header.status === 0x20) {
+      } else if (response.header.status === (0x20 as any) /* TODO: wtf? */) {
         this.error(new Error("Memcached server authentication failed!"));
       } else if (response.header.opcode === 0x21) {
         this.emit("authenticated");

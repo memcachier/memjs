@@ -9,6 +9,68 @@ export const bufferify = function (val: MaybeBuffer) {
   return Buffer.isBuffer(val) ? val : Buffer.from(val as any);
 };
 
+export interface EncodableRequest {
+  header: Omit<
+    header.Header,
+    "magic" | "keyLength" | "extrasLength" | "totalBodyLength"
+  >;
+  key: MaybeBuffer;
+  extras: MaybeBuffer;
+  value: MaybeBuffer;
+}
+
+export function encodeRequestIntoBuffer(
+  buffer: Buffer,
+  offset: number,
+  request: EncodableRequest
+) {
+  const key = bufferify(request.key);
+  const extras = bufferify(request.extras);
+  const value = bufferify(request.value);
+
+  const bufTargetWriteOffset = offset || 0;
+  let totalBytesWritten = 0;
+  function copyIntoBuffer(toWriteBuffer: Buffer) {
+    const bytesWritten = toWriteBuffer.copy(
+      buffer,
+      bufTargetWriteOffset + totalBytesWritten
+    );
+    totalBytesWritten += bytesWritten;
+  }
+
+  const requestHeader: header.Header = {
+    ...request.header,
+    magic: 0x80,
+    keyLength: key.length,
+    extrasLength: extras.length,
+    totalBodyLength: key.length + value.length + extras.length,
+  };
+
+  const headerBuffer = header.toBuffer(requestHeader);
+
+  copyIntoBuffer(headerBuffer);
+  copyIntoBuffer(extras);
+  copyIntoBuffer(key);
+  copyIntoBuffer(value);
+
+  return totalBytesWritten;
+}
+
+export function encodeRequest(request: EncodableRequest): Buffer {
+  const key = bufferify(request.key);
+  const extras = bufferify(request.extras);
+  const value = bufferify(request.value);
+  const bufSize = 24 + key.length + extras.length + value.length;
+  const buffer = Buffer.alloc(bufSize);
+  encodeRequestIntoBuffer(buffer, 0, {
+    ...request,
+    key,
+    extras,
+    value,
+  });
+  return buffer;
+}
+
 export const copyIntoRequestBuffer = function (
   opcode: OP,
   key: MaybeBuffer,
@@ -18,36 +80,15 @@ export const copyIntoRequestBuffer = function (
   buf: Buffer,
   _bufTargetWriteOffset?: number
 ) {
-  key = bufferify(key);
-  extras = bufferify(extras);
-  value = bufferify(value);
-
-  const bufTargetWriteOffset = _bufTargetWriteOffset || 0;
-  let totalBytesWritten = 0;
-  function copyIntoBuffer(toWriteBuffer: Buffer) {
-    const bytesWritten = toWriteBuffer.copy(
-      buf,
-      bufTargetWriteOffset + totalBytesWritten
-    );
-    totalBytesWritten += bytesWritten;
-  }
-
-  const requestHeader: header.Header = {
-    magic: 0x80,
-    opcode: opcode,
-    keyLength: key.length,
-    extrasLength: extras.length,
-    totalBodyLength: key.length + value.length + extras.length,
-    opaque: opaque,
-  };
-  const headerBuffer = header.toBuffer(requestHeader);
-
-  copyIntoBuffer(headerBuffer);
-  copyIntoBuffer(extras);
-  copyIntoBuffer(key);
-  copyIntoBuffer(value);
-
-  return totalBytesWritten;
+  return encodeRequestIntoBuffer(buf, _bufTargetWriteOffset || 0, {
+    header: {
+      opcode,
+      opaque,
+    },
+    key,
+    extras,
+    value,
+  });
 };
 
 export const makeRequestBuffer = function (
@@ -57,16 +98,15 @@ export const makeRequestBuffer = function (
   value: MaybeBuffer,
   opaque?: number
 ) {
-  key = bufferify(key);
-  extras = bufferify(extras);
-  value = bufferify(value);
-
-  const bufSize = 24 + key.length + extras.length + value.length;
-
-  const buf = Buffer.alloc(bufSize);
-  buf.fill(0);
-  copyIntoRequestBuffer(opcode, key, extras, value, opaque || 0, buf);
-  return buf;
+  return encodeRequest({
+    extras,
+    key,
+    value,
+    header: {
+      opcode,
+      opaque: opaque || 0,
+    },
+  });
 };
 
 export const makeAmountInitialAndExpiration = function (
@@ -131,7 +171,7 @@ export const parseMessage = function (dataBuf: Buffer): Message | false {
 export const parseMessages = function (dataBuf: Buffer): Message[] {
   const messages = [];
 
-  let message: Message
+  let message: Message;
 
   do {
     message = exports.parseMessage(dataBuf);

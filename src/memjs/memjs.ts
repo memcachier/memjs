@@ -1,17 +1,12 @@
 // MemTS Memcache Client
 
-import { errors, UNKNOWN_ERROR } from "./protocol";
 import {
   OnErrorCallback,
   OnResponseCallback,
   Server,
   ServerOptions,
 } from "./server";
-import {
-  noopSerializer,
-  Serializer,
-  SerializerResult,
-} from "./noop-serializer";
+import { noopSerializer, Serializer } from "./noop-serializer";
 import {
   makeRequestBuffer,
   copyIntoRequestBuffer,
@@ -23,10 +18,14 @@ import {
   Message,
 } from "./utils";
 import * as constants from "./constants";
+import { ResponseStatus } from "./constants";
 import * as Utils from "./utils";
 import * as Header from "./header";
 
-function defaultKeyToServerHashFunction(servers: string[], key: string): string {
+function defaultKeyToServerHashFunction(
+  servers: string[],
+  key: string
+): string {
   const total = servers.length;
   const index = total > 1 ? hashCode(key) % total : 0;
   return servers[index];
@@ -60,9 +59,21 @@ interface SerializerProp<Value, Extras> {
   serializer: Serializer<Value, Extras>;
 }
 
-type IfBuffer<Value, Extras, IsBuffer, NotBuffer> = Value extends Buffer
+/**
+ * The client has partial support for serializing and deserializing values from the
+ * Buffer byte strings we recieve from the wire. The default serializer is for MaybeBuffer.
+ *
+ * If Value and Extras are of type Buffer, then return type WhenBuffer. Otherwise,
+ * return type NotBuffer.
+ */
+type IfBuffer<
+  Value,
+  Extras,
+  WhenValueAndExtrasAreBuffers,
+  NotBuffer
+> = Value extends Buffer
   ? Extras extends Buffer
-    ? IsBuffer
+    ? WhenValueAndExtrasAreBuffers
     : NotBuffer
   : NotBuffer;
 
@@ -74,7 +85,23 @@ export type GivenClientOptions<Value, Extras> = Partial<BaseClientOptions> &
     SerializerProp<Value, Extras>
   >;
 
-class Client<Value, Extras> {
+export type CASToken = Buffer;
+
+export interface GetResult<Value = MaybeBuffer, Extras = MaybeBuffer> {
+  value: Value;
+  extras: Extras;
+  cas: CASToken | undefined;
+}
+
+export type GetMultiResult<
+  Keys extends string = string,
+  Value = MaybeBuffer,
+  Extras = MaybeBuffer
+> = {
+  [K in Keys]?: GetResult<Value, Extras>;
+};
+
+class Client<Value = MaybeBuffer, Extras = MaybeBuffer> {
   servers: Server[];
   seq: number;
   options: BaseClientOptions & Partial<SerializerProp<Value, Extras>>;
@@ -202,11 +229,8 @@ class Client<Value, Extras> {
   /**
    * Given a key to look up in memcache, return a serverKey (based on some
    * hashing function) which can be used to index this.serverMap
-   *
-   * @param  {string} key
-   * @returns {string}
    */
-  lookupKeyToServerKey(key: string) {
+  lookupKeyToServerKey(key: string): string {
     return this.options.keyToServerHashFunction(this.serverKeys, key);
   }
 
@@ -226,76 +250,57 @@ class Client<Value, Extras> {
   // arguments.
 
   /**
-   * GET
-   *
    * Retrieves the value at the given key in memcache.
-   *
-   * The callback signature is:
-   *
-   *     callback(err, value, flags)
-   *
-   * _value_ and _flags_ are both `Buffer`s. If the key is not found, the
-   * callback is invoked with null for both arguments and no error
-   * @param key
-   * @param callback
    */
-  get(key: string): Promise<{ value: Value | null; flags: Extras | null }>;
+  get(key: string): Promise<GetResult<Value, Extras> | null>;
   get(
     key: string,
     callback: (
       error: Error | null,
-      value: Value | null,
-      flags: Extras | null
+      result: GetResult<Value, Extras> | null
     ) => void
   ): void;
   get(
     key: string,
     callback?: (
       error: Error | null,
-      value: Value | null,
-      flags: Extras | null
+      result: GetResult<Value, Extras> | null
     ) => void
-  ): Promise<{ value: Value | null; flags: Extras | null }> | void {
+  ): Promise<GetResult<Value, Extras> | null> | void {
     if (callback === undefined) {
       return promisify((callback) => {
-        this.get(key, function (err, value, flags) {
-          callback(err, { value: value, flags: flags });
+        this.get(key, function (err, value) {
+          callback(err, value);
         });
       });
     }
-    const logger = this.options.logger;
     this.incrSeq();
     const request = makeRequestBuffer(constants.OP_GET, key, "", "", this.seq);
     this.perform(key, request, this.seq, (err, response) => {
       if (err) {
         if (callback) {
-          callback(err, null, null);
+          callback(err, null);
         }
         return;
       }
       switch (response!.header.status) {
-        case constants.RESPONSE_STATUS_SUCCCESS:
+        case ResponseStatus.SUCCESS:
           if (callback) {
             const deserialized = this.serializer.deserialize(
               response!.header.opcode,
               response!.val,
               response!.extras
             );
-            callback(null, deserialized.value, deserialized.extras);
+            callback(null, { ...deserialized, cas: response!.header.cas });
           }
           break;
-        case constants.RESPONSE_STATUS_KEY_NOT_FOUND:
+        case ResponseStatus.KEY_NOT_FOUND:
           if (callback) {
-            callback(null, null, null);
+            callback(null, null);
           }
           break;
         default:
-          const errorMessage =
-            "MemJS GET: " + errors[response!.header.status || UNKNOWN_ERROR];
-          logger.log(errorMessage);
-          if (callback) {
-            callback(new Error(errorMessage), null, null);
-          }
+          this.handleResponseError("GET", response?.header?.status, callback);
       }
     });
   }
@@ -304,7 +309,7 @@ class Client<Value, Extras> {
    *
    * cf https://github.com/couchbase/memcached/blob/master/docs/BinaryProtocol.md#0x0d-getkq-get-with-key-quietly
    */
-  _buildGetMultiRequest(keys: string[]) {
+  _buildGetMultiRequest(keys: string[]): Buffer {
     // start at 24 for the no-op command at the end
     let requestSize = 24;
     for (const keyIdx in keys) {
@@ -312,7 +317,6 @@ class Client<Value, Extras> {
     }
 
     const request = Buffer.alloc(requestSize);
-    request.fill(0);
 
     let bytesWritten = 0;
     for (const keyIdx in keys) {
@@ -342,22 +346,19 @@ class Client<Value, Extras> {
   }
 
   /** Executing a pipelined (multi) get against a single server. This is a private implementation detail of getMulti. */
-  _getMultiToServer(
+  _getMultiToServer<Keys extends string>(
     serv: Server,
-    keys: string[],
+    keys: Keys[],
     callback: (
       error: Error | null,
-      values: { [key: string]: Value | null } | null,
-      flags: Extras | null
+      values: GetMultiResult<Keys, Value, Extras> | null
     ) => void
   ) {
-    const responseMap: {
-      [server: string]: Value | null;
-    } = {};
+    const responseMap: GetMultiResult<string, Value, Extras> = {};
 
     const handle: OnResponseCallback = (response) => {
       switch (response.header.status) {
-        case constants.RESPONSE_STATUS_SUCCCESS:
+        case ResponseStatus.SUCCESS:
           if (callback) {
             const deserialized = this.serializer.deserialize(
               response.header.opcode,
@@ -369,25 +370,15 @@ class Client<Value, Extras> {
               // This ensures the handler will be deleted from the responseCallbacks map in server.js
               // This isn't technically needed here because the logic in server.js also checks if totalBodyLength === 0, but our unittests aren't great about setting that field, and also this makes it more explicit
               handle.quiet = false;
-              callback(null, responseMap, deserialized.extras);
+              callback(null, responseMap);
             } else {
               const key = response.key.toString();
-              responseMap[key] = deserialized.value;
+              responseMap[key] = { ...deserialized, cas: response.header.cas };
             }
           }
           break;
-        case constants.RESPONSE_STATUS_KEY_NOT_FOUND:
-          if (callback) {
-            callback(null, null, null);
-          }
-          break;
         default:
-          const errorMessage =
-            "MemJS GET: " + errors[response.header.status || UNKNOWN_ERROR];
-          this.options.logger.log(errorMessage);
-          if (callback) {
-            callback(new Error(errorMessage), null, null);
-          }
+          this.handleResponseError("GET", response.header.status, callback);
       }
     };
     // This prevents the handler from being deleted
@@ -398,7 +389,7 @@ class Client<Value, Extras> {
     serv.onResponse(this.seq, handle);
     serv.onError(this.seq, function (err) {
       if (callback) {
-        callback(err, serv.hostportString() as any /* TODO */, null);
+        callback(err, null);
       }
     });
     this.incrSeq();
@@ -406,46 +397,30 @@ class Client<Value, Extras> {
   }
 
   /**
-   * MULTI-GET / GET-MULTI
-   *
-   * Retrieves the value at the given keys in memcache.
-   *
-   * The callback signature is:
-   *
-   *     callback(err, value, flags)
-   *
-   * @param keys
-   * @param callback
+   * Retrievs the value at the given keys in memcached. Returns a map from the
+   * requested keys to results, or null if the key was not found.
    */
   getMulti<Keys extends string>(
     keys: Keys[]
-  ): Promise<{
-    values: { [K in Keys]?: Value | null } | null;
-    flags: Extras | null;
-  }>;
+  ): Promise<GetMultiResult<Keys, Value, Extras> | null>;
   getMulti<Keys extends string>(
     keys: Keys[],
     callback: (
       error: Error | null,
-      value: { [K in Keys]?: Value | null } | null,
-      flags: Extras | null
+      value: GetMultiResult<Keys, Value, Extras> | null
     ) => void
   ): void;
   getMulti<Keys extends string>(
     keys: Keys[],
     callback?: (
       error: Error | null,
-      value: { [K in Keys]?: Value | null } | null,
-      flags: Extras | null
+      value: GetMultiResult<Keys, Value, Extras> | null
     ) => void
-  ): Promise<{
-    values: { [K in Keys]?: Value | null } | null;
-    flags: Extras | null;
-  }> | void {
+  ): Promise<GetMultiResult<Keys, Value, Extras> | null> | void {
     if (callback === undefined) {
       return promisify((callback) => {
-        this.getMulti(keys, function (err, values, flags) {
-          callback(err, { values: values, flags: flags });
+        this.getMulti(keys, function (err, value) {
+          callback(err, value);
         });
       });
     }
@@ -463,12 +438,11 @@ class Client<Value, Extras> {
 
     const usedServerKeys = Object.keys(serverKeytoLookupKeys);
     let outstandingCalls = usedServerKeys.length;
-    const recordMap = {};
+    const recordMap: GetMultiResult<string, Value, Extras> = {};
     let hadError = false;
     function latchCallback(
       err: Error | null,
-      values: { [key: string]: Value | null } | null,
-      flags: Extras | null
+      values: GetMultiResult<string, Value, Extras> | null
     ) {
       if (hadError) {
         return;
@@ -476,14 +450,14 @@ class Client<Value, Extras> {
 
       if (err) {
         hadError = true;
-        callback!(err, null, null);
+        callback!(err, null);
         return;
       }
 
       merge(recordMap, values);
       outstandingCalls -= 1;
       if (outstandingCalls === 0) {
-        callback!(null, recordMap, flags);
+        callback!(null, recordMap);
       }
     }
 
@@ -499,72 +473,55 @@ class Client<Value, Extras> {
   }
 
   /**
-   * SET
-   *
-   * Sets the given _key_ and _value_ in memcache.
-   *
-   * The options dictionary takes:
-   * * _expires_: overrides the default expiration (see `Client.create`) for this
-   *              particular key-value pair.
-   *
-   * The callback signature is:
-   *
-   *     callback(err, success)
-   * @param key
-   * @param value
-   * @param options
-   * @param callback
+   * Sets the given _key_ to _value_.
    */
   set(
     key: string,
     value: Value,
-    options?: { expires?: number }
+    options?: { expires?: number; cas?: CASToken }
   ): Promise<boolean | null>;
   set(
     key: string,
     value: Value,
-    options: { expires?: number },
+    options: { expires?: number; cas?: CASToken },
     callback: (error: Error | null, success: boolean | null) => void
   ): void;
   set(
     key: string,
     value: Value,
-    options: { expires?: number },
+    options: { expires?: number; cas?: CASToken },
     callback?: (error: Error | null, success: boolean | null) => void
   ): Promise<boolean | null> | void {
     if (callback === undefined && typeof options !== "function") {
       if (!options) options = {};
       return promisify((callback) => {
-        this.set(
-          key,
-          value,
-          options as { expires?: number },
-          function (err, success) {
-            callback(err, success);
-          }
-        );
+        this.set(key, value, options, function (err, success) {
+          callback(err, success);
+        });
       });
     }
 
-    const logger = this.options.logger
-    const expires = (options || {}).expires;
+    const expires = options.expires;
 
-
-    // TODO: support flags, support version (CAS)
+    // TODO: support flags
     this.incrSeq();
     const expiration = makeExpiration(expires || this.options.expires);
     const extras = Buffer.concat([Buffer.from("00000000", "hex"), expiration]);
 
     const opcode: constants.OP = 1;
     const serialized = this.serializer.serialize(opcode, value, extras);
-    const request = makeRequestBuffer(
-      opcode,
+
+    const request = Utils.encodeRequest({
+      header: {
+        opcode: constants.OP_SET,
+        opaque: this.seq,
+        cas: options.cas,
+      },
       key,
-      serialized.extras,
-      serialized.value,
-      this.seq
-    );
-    this.perform(key, request, this.seq, function (err, response) {
+      value: serialized.value,
+      extras: serialized.extras,
+    });
+    this.perform(key, request, this.seq, (err, response) => {
       if (err) {
         if (callback) {
           callback(err, null);
@@ -572,18 +529,20 @@ class Client<Value, Extras> {
         return;
       }
       switch (response!.header.status) {
-        case constants.RESPONSE_STATUS_SUCCCESS:
+        case ResponseStatus.SUCCESS:
           if (callback) {
             callback(null, true);
           }
           break;
-        default:
-          const errorMessage =
-            "MemJS SET: " + errors[response!.header.status || UNKNOWN_ERROR];
-          logger.log(errorMessage);
-          if (callback) {
-            callback(new Error(errorMessage), null);
+        case ResponseStatus.KEY_EXISTS:
+          if (options.cas) {
+            if (callback) {
+              callback(null, false);
+            }
+            break;
           }
+        default:
+          this.handleResponseError("SET", response!.header.status, callback);
       }
     });
   }
@@ -636,11 +595,12 @@ class Client<Value, Extras> {
         );
       });
     }
-    const logger = this.options.logger;
 
     // TODO: support flags, support version (CAS)
     this.incrSeq();
-    const expiration = makeExpiration((options || {}).expires || this.options.expires);
+    const expiration = makeExpiration(
+      (options || {}).expires || this.options.expires
+    );
     const extras = Buffer.concat([Buffer.from("00000000", "hex"), expiration]);
 
     const opcode: constants.OP = 2;
@@ -652,7 +612,7 @@ class Client<Value, Extras> {
       serialized.value,
       this.seq
     );
-    this.perform(key, request, this.seq, function (err, response) {
+    this.perform(key, request, this.seq, (err, response) => {
       if (err) {
         if (callback) {
           callback(err, null);
@@ -660,23 +620,22 @@ class Client<Value, Extras> {
         return;
       }
       switch (response!.header.status) {
-        case constants.RESPONSE_STATUS_SUCCCESS:
+        case ResponseStatus.SUCCESS:
           if (callback) {
             callback(null, true);
           }
           break;
-        case constants.RESPONSE_STATUS_KEY_EXISTS:
+        case ResponseStatus.KEY_EXISTS:
           if (callback) {
             callback(null, false);
           }
           break;
         default:
-          const errorMessage =
-            "MemJS ADD: " + errors[response!.header.status || UNKNOWN_ERROR];
-          logger.log(errorMessage, false);
-          if (callback) {
-            callback(new Error(errorMessage), null);
-          }
+          return this.handleResponseError(
+            "ADD",
+            response?.header?.status,
+            callback
+          );
       }
     });
   }
@@ -718,11 +677,12 @@ class Client<Value, Extras> {
         );
       });
     }
-    const logger = this.options.logger;
 
     // TODO: support flags, support version (CAS)
     this.incrSeq();
-    const expiration = makeExpiration((options || {}).expires || this.options.expires);
+    const expiration = makeExpiration(
+      (options || {}).expires || this.options.expires
+    );
     const extras = Buffer.concat([Buffer.from("00000000", "hex"), expiration]);
 
     const opcode: constants.OP = 3;
@@ -734,7 +694,7 @@ class Client<Value, Extras> {
       serialized.value,
       this.seq
     );
-    this.perform(key, request, this.seq, function (err, response) {
+    this.perform(key, request, this.seq, (err, response) => {
       if (err) {
         if (callback) {
           callback(err, null);
@@ -742,24 +702,22 @@ class Client<Value, Extras> {
         return;
       }
       switch (response!.header.status) {
-        case constants.RESPONSE_STATUS_SUCCCESS:
+        case ResponseStatus.SUCCESS:
           if (callback) {
             callback(null, true);
           }
           break;
-        case constants.RESPONSE_STATUS_KEY_NOT_FOUND:
+        case ResponseStatus.KEY_NOT_FOUND:
           if (callback) {
             callback(null, false);
           }
           break;
         default:
-          const errorMessage =
-            "MemJS REPLACE: " +
-            errors[response!.header.status || UNKNOWN_ERROR];
-          logger.log(errorMessage, false);
-          if (callback) {
-            callback(new Error(errorMessage), null);
-          }
+          this.handleResponseError(
+            "REPLACE",
+            response?.header?.status,
+            callback
+          );
       }
     });
   }
@@ -793,10 +751,9 @@ class Client<Value, Extras> {
       });
     }
     // TODO: Support version (CAS)
-    const logger = this.options.logger;
     this.incrSeq();
     const request = makeRequestBuffer(4, key, "", "", this.seq);
-    this.perform(key, request, this.seq, function (err, response) {
+    this.perform(key, request, this.seq, (err, response) => {
       if (err) {
         if (callback) {
           callback(err, null);
@@ -804,23 +761,18 @@ class Client<Value, Extras> {
         return;
       }
       switch (response!.header.status) {
-        case constants.RESPONSE_STATUS_SUCCCESS:
+        case ResponseStatus.SUCCESS:
           if (callback) {
             callback(null, true);
           }
           break;
-        case constants.RESPONSE_STATUS_KEY_NOT_FOUND:
+        case ResponseStatus.KEY_NOT_FOUND:
           if (callback) {
             callback(null, false);
           }
           break;
         default:
-          const errorMessage =
-            "MemJS DELETE: " + errors[response!.header.status || UNKNOWN_ERROR];
-          logger.log(errorMessage, false);
-          if (callback) {
-            callback(new Error(errorMessage), null);
-          }
+          this.handleResponseError("DELETE", response?.header.status, callback);
       }
     });
   }
@@ -876,15 +828,20 @@ class Client<Value, Extras> {
         });
       });
     }
-    const logger = this.options.logger;
 
     // TODO: support version (CAS)
     this.incrSeq();
     const initial = options.initial || 0;
     const expires = options.expires || this.options.expires;
     const extras = makeAmountInitialAndExpiration(amount, initial, expires);
-    const request = makeRequestBuffer(5, key, extras, "", this.seq);
-    this.perform(key, request, this.seq, function (err, response) {
+    const request = makeRequestBuffer(
+      constants.OP_INCREMENT,
+      key,
+      extras,
+      "",
+      this.seq
+    );
+    this.perform(key, request, this.seq, (err, response) => {
       if (err) {
         if (callback) {
           callback(err, null);
@@ -892,7 +849,7 @@ class Client<Value, Extras> {
         return;
       }
       switch (response!.header.status) {
-        case constants.RESPONSE_STATUS_SUCCCESS:
+        case ResponseStatus.SUCCESS:
           const bufInt =
             (response!.val.readUInt32BE(0) << 8) +
             response!.val.readUInt32BE(4);
@@ -901,12 +858,13 @@ class Client<Value, Extras> {
           }
           break;
         default:
-          const errorMessage =
-            "MemJS INCREMENT: " +
-            errors[response!.header.status || UNKNOWN_ERROR];
-          logger.log(errorMessage);
+          const error = this.handleResponseError(
+            "INCREMENT",
+            response!.header.status,
+            undefined
+          );
           if (callback) {
-            callback(new Error(errorMessage), null, null);
+            callback(error, null, null);
           }
       }
     });
@@ -957,14 +915,18 @@ class Client<Value, Extras> {
       });
     }
     // TODO: support version (CAS)
-    const logger = this.options.logger;
-
     this.incrSeq();
     const initial = options.initial || 0;
     const expires = options.expires || this.options.expires;
     const extras = makeAmountInitialAndExpiration(amount, initial, expires);
-    const request = makeRequestBuffer(6, key, extras, "", this.seq);
-    this.perform(key, request, this.seq, function (err, response) {
+    const request = makeRequestBuffer(
+      constants.OP_DECREMENT,
+      key,
+      extras,
+      "",
+      this.seq
+    );
+    this.perform(key, request, this.seq, (err, response) => {
       if (err) {
         if (callback) {
           callback(err, null);
@@ -972,7 +934,7 @@ class Client<Value, Extras> {
         return;
       }
       switch (response!.header.status) {
-        case constants.RESPONSE_STATUS_SUCCCESS:
+        case ResponseStatus.SUCCESS:
           const bufInt =
             (response!.val.readUInt32BE(0) << 8) +
             response!.val.readUInt32BE(4);
@@ -981,12 +943,13 @@ class Client<Value, Extras> {
           }
           break;
         default:
-          const errorMessage =
-            "MemJS DECREMENT: " +
-            errors[response!.header.status || UNKNOWN_ERROR];
-          logger.log(errorMessage);
+          const error = this.handleResponseError(
+            "DECREMENT",
+            response!.header.status,
+            undefined
+          );
           if (callback) {
-            callback(new Error(errorMessage), null, null);
+            callback(error, null, null);
           }
       }
     });
@@ -1023,9 +986,8 @@ class Client<Value, Extras> {
       });
     }
     // TODO: support version (CAS)
-    const logger = this.options.logger;
     this.incrSeq();
-    const opcode: constants.OP = 0x0e;
+    const opcode: constants.OP = constants.OP_APPEND;
     const serialized = this.serializer.serialize(opcode, value, "");
     const request = makeRequestBuffer(
       opcode,
@@ -1034,7 +996,7 @@ class Client<Value, Extras> {
       serialized.value,
       this.seq
     );
-    this.perform(key, request, this.seq, function (err, response) {
+    this.perform(key, request, this.seq, (err, response) => {
       if (err) {
         if (callback) {
           callback(err, null);
@@ -1042,23 +1004,18 @@ class Client<Value, Extras> {
         return;
       }
       switch (response!.header.status) {
-        case constants.RESPONSE_STATUS_SUCCCESS:
+        case ResponseStatus.SUCCESS:
           if (callback) {
             callback(null, true);
           }
           break;
-        case constants.RESPONSE_STATUS_KEY_NOT_FOUND:
+        case ResponseStatus.KEY_NOT_FOUND:
           if (callback) {
             callback(null, false);
           }
           break;
         default:
-          const errorMessage =
-            "MemJS APPEND: " + errors[response!.header.status || UNKNOWN_ERROR];
-          logger.log(errorMessage);
-          if (callback) {
-            callback(new Error(errorMessage), null);
-          }
+          this.handleResponseError("APPEND", response!.header.status, callback);
       }
     });
   }
@@ -1094,10 +1051,9 @@ class Client<Value, Extras> {
       });
     }
     // TODO: support version (CAS)
-    const logger = this.options.logger;
     this.incrSeq();
 
-    const opcode: constants.OP = constants.OP_PREPEND; /* WAS WRONG IN ORIGINAL */
+    const opcode: constants.OP = constants.OP_PREPEND;
     const serialized = this.serializer.serialize(opcode, value, "");
     const request = makeRequestBuffer(
       opcode,
@@ -1106,7 +1062,7 @@ class Client<Value, Extras> {
       serialized.value,
       this.seq
     );
-    this.perform(key, request, this.seq, function (err, response) {
+    this.perform(key, request, this.seq, (err, response) => {
       if (err) {
         if (callback) {
           callback(err, null);
@@ -1114,24 +1070,22 @@ class Client<Value, Extras> {
         return;
       }
       switch (response!.header.status) {
-        case constants.RESPONSE_STATUS_SUCCCESS:
+        case ResponseStatus.SUCCESS:
           if (callback) {
             callback(null, true);
           }
           break;
-        case constants.RESPONSE_STATUS_KEY_NOT_FOUND:
+        case ResponseStatus.KEY_NOT_FOUND:
           if (callback) {
             callback(null, false);
           }
           break;
         default:
-          const errorMessage =
-            "MemJS PREPEND: " +
-            errors[response!.header.status || UNKNOWN_ERROR];
-          logger.log(errorMessage);
-          if (callback) {
-            callback(new Error(errorMessage), null);
-          }
+          this.handleResponseError(
+            "PREPEND",
+            response!.header.status,
+            callback
+          );
       }
     });
   }
@@ -1167,11 +1121,10 @@ class Client<Value, Extras> {
       });
     }
     // TODO: support version (CAS)
-    const logger = this.options.logger;
     this.incrSeq();
     const extras = makeExpiration(expires || this.options.expires);
     const request = makeRequestBuffer(0x1c, key, extras, "", this.seq);
-    this.perform(key, request, this.seq, function (err, response) {
+    this.perform(key, request, this.seq, (err, response) => {
       if (err) {
         if (callback) {
           callback(err, null);
@@ -1179,23 +1132,18 @@ class Client<Value, Extras> {
         return;
       }
       switch (response!.header.status) {
-        case constants.RESPONSE_STATUS_SUCCCESS:
+        case ResponseStatus.SUCCESS:
           if (callback) {
             callback(null, true);
           }
           break;
-        case constants.RESPONSE_STATUS_KEY_NOT_FOUND:
+        case ResponseStatus.KEY_NOT_FOUND:
           if (callback) {
             callback(null, false);
           }
           break;
         default:
-          const errorMessage =
-            "MemJS TOUCH: " + errors[response!.header.status || UNKNOWN_ERROR];
-          logger.log(errorMessage);
-          if (callback) {
-            callback(new Error(errorMessage), null);
-          }
+          this.handleResponseError("TOUCH", response!.header.status, callback);
       }
     });
   }
@@ -1284,13 +1232,12 @@ class Client<Value, Extras> {
       stats: Record<string, string> | null
     ) => void
   ): void {
-    const logger = this.options.logger;
     this.incrSeq();
     const request = makeRequestBuffer(0x10, key, "", "", this.seq);
 
-    const handleStats = function (seq: number, serv: Server) {
+    const handleStats = (seq: number, serv: Server) => {
       const result: Record<string, string> = {};
-      const handle: OnResponseCallback = function (response) {
+      const handle: OnResponseCallback = (response) => {
         // end of stat responses
         if (response.header.totalBodyLength === 0) {
           if (callback) {
@@ -1300,18 +1247,17 @@ class Client<Value, Extras> {
         }
         // process single stat line response
         switch (response.header.status) {
-          case constants.RESPONSE_STATUS_SUCCCESS:
+          case ResponseStatus.SUCCESS:
             result[response.key.toString()] = response.val.toString();
             break;
           default:
-            const errorMessage =
-              "MemJS STATS (" +
-              key +
-              "): " +
-              errors[response.header.status || UNKNOWN_ERROR];
-            logger.log(errorMessage, false);
+            const error = this.handleResponseError(
+              `STATS (${key})`,
+              response.header.status,
+              undefined
+            );
             if (callback) {
-              callback(new Error(errorMessage), serv.hostportString(), null);
+              callback(error, serv.hostportString(), null);
             }
         }
       };
@@ -1408,47 +1354,42 @@ class Client<Value, Extras> {
     }
   }
 
-  _version(
-    server: Server
-  ): Promise<{ value: Value | null; flags: Extras | null }>;
+  _version(server: Server): Promise<{ value: Value | null }>;
   _version(
     server: Server,
-    callback: (
-      error: Error | null,
-      value: Value | null,
-      flags: Extras | null
-    ) => void
+    callback: (error: Error | null, value: Value | null) => void
   ): void;
   _version(
     server: Server,
-    callback?: (
-      error: Error | null,
-      value: Value | null,
-      extras: Extras | null
-    ) => void
-  ): Promise<{ value: Value | null; flags: Extras | null }> | void {
+    callback?: (error: Error | null, value: Value | null) => void
+  ): Promise<{ value: Value | null }> | void {
     if (callback === undefined) {
       return promisify((callback) => {
-        this._version(server, function (err, value, flags) {
-          callback(err, { value: value, flags: flags });
+        this._version(server, function (err, value) {
+          callback(err, { value: value });
         });
       });
     }
 
     this.incrSeq();
-    const request = makeRequestBuffer(constants.OP_VERSION, "", "", "", this.seq);
-    const logger = this.options.logger;
+    const request = makeRequestBuffer(
+      constants.OP_VERSION,
+      "",
+      "",
+      "",
+      this.seq
+    );
 
     this.performOnServer(server, request, this.seq, (err, response) => {
       if (err) {
         if (callback) {
-          callback(err, null, null);
+          callback(err, null);
         }
         return;
       }
 
       switch (response!.header.status) {
-        case constants.RESPONSE_STATUS_SUCCCESS:
+        case ResponseStatus.SUCCESS:
           /* TODO: this is bugged, we should't use the deserializer here, since version always returns a version string.
              The deserializer should only be used on user key data. */
           const deserialized = this.serializer.deserialize(
@@ -1456,16 +1397,14 @@ class Client<Value, Extras> {
             response!.val,
             response!.extras
           );
-          callback(null, deserialized.value, deserialized.extras);
+          callback(null, deserialized.value);
           break;
         default:
-          const errorMessage =
-            "MemJS VERSION: " +
-            errors[(response!.header.status, UNKNOWN_ERROR)];
-          logger.log(errorMessage);
-          if (callback) {
-            callback(new Error(errorMessage), null, null);
-          }
+          this.handleResponseError(
+            "VERSION",
+            response!.header.status,
+            callback
+          );
       }
     });
   }
@@ -1477,21 +1416,9 @@ class Client<Value, Extras> {
    *
    * The server responds with a packet containing the version string in the body with the following format: "x.y.z"
    */
-  version(): Promise<{ value: Value | null; flags: Extras | null }>;
-  version(
-    callback: (
-      error: Error | null,
-      value: Value | null,
-      flags: Extras | null
-    ) => void
-  ): void;
-  version(
-    callback?: (
-      error: Error | null,
-      value: Value | null,
-      extras: Extras | null
-    ) => void
-  ) {
+  version(): Promise<{ value: Value | null }>;
+  version(callback: (error: Error | null, value: Value | null) => void): void;
+  version(callback?: (error: Error | null, value: Value | null) => void) {
     const server = this.serverKeyToServer(this.serverKeys[0]);
     if (callback) {
       this._version(server, callback);
@@ -1652,6 +1579,26 @@ class Client<Value, Extras> {
 
     // Wrap `this.seq` to 32-bits since the field we fit it into is only 32-bits.
     this.seq &= 0xffffffff;
+  }
+
+  /**
+   * Log an error to the logger, then return the error.
+   * If a callback is given, call it with callback(error, null).
+   */
+  private handleResponseError(
+    commandName: string,
+    responseStatus: ResponseStatus | undefined,
+    callback: undefined | ((error: Error | null, other: null) => void)
+  ): Error {
+    const errorMessage = `MemJS ${commandName}: ${constants.responseStatusToString(
+      responseStatus
+    )}`;
+    this.options.logger.log(errorMessage);
+    const error = new Error(errorMessage);
+    if (callback) {
+      callback(error, null);
+    }
+    return error;
   }
 }
 

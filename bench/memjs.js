@@ -4,8 +4,8 @@ const b = require('benchmark');
 
 function makeString(n) {
   const possible = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-  const text = '';
-  const i;
+  let text = '';
+  let i;
 
   for(i=0; i < n; i++ ) {
     text += possible.charAt(Math.floor(Math.random() * possible.length));
@@ -14,7 +14,7 @@ function makeString(n) {
   return text;
 }
 
-const x = (function() {
+let x = (function() {
   const suite = new b.Suite();
 
   const headerBuf = Buffer.from([0x81, 1, 7, 0, 4, 0, 0, 1, 0, 0, 0, 9, 0, 0, 0, 0, 0x0a, 0, 0, 0, 0, 0, 0, 0]);
@@ -58,7 +58,7 @@ x = (function() {
     return arg;
   };
 
-  const i;
+  let i;
   for (i = 0; i < 10; i++) {
     server.onResponse(dummyFunc);
   }

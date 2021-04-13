@@ -1,5 +1,5 @@
 const test = require('tap').test;
-const utils = require('../lib/memjs/utils');
+const utils = require('../memjs/utils');
 
 test('MergePresereParameter', function(t) {
   const result = utils.merge({}, { retries: 2 });
