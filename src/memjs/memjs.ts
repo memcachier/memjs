@@ -313,14 +313,23 @@ class Client<Value = MaybeBuffer, Extras = MaybeBuffer> {
               // This isn't technically needed here because the logic in server.js also checks if totalBodyLength === 0, but our unittests aren't great about setting that field, and also this makes it more explicit
               handle.quiet = false;
               resolve(responseMap);
-            } else {
+            } else if (response.header.opcode === constants.OP_GETK || response.header.opcode === constants.OP_GETKQ) {
               const deserialized = this.serializer.deserialize(
                 response.header.opcode,
                 response.val,
                 response.extras
               );
               const key = response.key.toString();
+              if (key.length === 0) {
+                return reject(
+                  new Error("Recieved empty key in getMulti: " + JSON.stringify(response))
+                );
+              }
               responseMap[key] = { ...deserialized, cas: response.header.cas };
+            } else {
+              return reject(
+                new Error("Recieved response in getMulti for unknown opcode: " + JSON.stringify(response))
+              );
             }
             break;
           default:
