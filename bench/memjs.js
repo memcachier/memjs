@@ -1,11 +1,11 @@
-var memjs = require("memjs");
-var header = require('header');
-var b = require("benchmark");
+const memjs = require('memjs');
+const header = require('header');
+const b = require('benchmark');
 
 function makeString(n) {
-  var possible = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
-  var text = "";
-  var i;
+  const possible = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+  let text = '';
+  let i;
 
   for(i=0; i < n; i++ ) {
     text += possible.charAt(Math.floor(Math.random() * possible.length));
@@ -14,29 +14,29 @@ function makeString(n) {
   return text;
 }
 
-var x = (function() {
-  var suite = new b.Suite();
+let x = (function() {
+  const suite = new b.Suite();
 
-  var headerBuf = Buffer.from([0x81, 1, 7, 0, 4, 0, 0, 1, 0, 0, 0, 9, 0, 0, 0, 0, 0x0a, 0, 0, 0, 0, 0, 0, 0]);
-  var parsedHeader = header.fromBuffer(headerBuf);
+  const headerBuf = Buffer.from([0x81, 1, 7, 0, 4, 0, 0, 1, 0, 0, 0, 9, 0, 0, 0, 0, 0x0a, 0, 0, 0, 0, 0, 0, 0]);
+  const parsedHeader = header.fromBuffer(headerBuf);
 
   suite.add('Header#fromBuffer', function() {
     header.fromBuffer(headerBuf);
   })
-  .add('Header#toBuffer', function() {
-    header.toBuffer(parsedHeader);
-  })
+    .add('Header#toBuffer', function() {
+      header.toBuffer(parsedHeader);
+    })
   // add listeners
-  .on('cycle', function(event) {
-    console.log(String(event.target));
-  })
+    .on('cycle', function(event) {
+      console.log(String(event.target));
+    })
   // run async
-  .run({ 'async': true });
+    .run({ 'async': true });
 }());
 
 x = (function() {
-  var suite = new b.Suite();
-  var responseHeader = {
+  const suite = new b.Suite();
+  const responseHeader = {
     magic: 0x81,
     opcode: 1,
     keyLength: 15,
@@ -47,18 +47,18 @@ x = (function() {
     opaque: 0,
     cas: Buffer.from([0x0a, 0, 0, 0, 0, 0, 0, 0])
   };
-  var buf = Buffer.alloc(24 + 15 + 1024 * 10);
+  const buf = Buffer.alloc(24 + 15 + 1024 * 10);
   header.toBuffer(responseHeader).copy(buf);
   buf.write(makeString(55));
 
-  var server = new memjs.Server();
+  const server = new memjs.Server();
 
-  var dummyFunc = function(arg) {
+  const dummyFunc = function(arg) {
     server.onResponse(dummyFunc);
     return arg;
   };
 
-  var i;
+  let i;
   for (i = 0; i < 10; i++) {
     server.onResponse(dummyFunc);
   }
@@ -66,32 +66,32 @@ x = (function() {
   suite.add('Server#respond', function() {
     server.respond('helloworldthisisatesttohowmuchyouareaversetocopyingoverthestargatecommisionandromanticizingaboutmylifelongpassionforlearningandyieldingtoyourdesires');
   })
-  .add('Server#responseHandler', function() {
-    server.responseHandler(buf);
-  })
+    .add('Server#responseHandler', function() {
+      server.responseHandler(buf);
+    })
   // add listeners
-  .on('cycle', function(event) {
-    console.log(String(event.target));
-  })
+    .on('cycle', function(event) {
+      console.log(String(event.target));
+    })
   // run async
-  .run({ 'async': true });
+    .run({ 'async': true });
 }());
 
 x = (function() {
-  var suite = new b.Suite();
-  var client = memjs.Client.create();
+  const suite = new b.Suite();
+  const client = memjs.Client.create();
 
   suite.cycles = 0;
   suite.add('Client#get', function() {
-    client.get("hello", function(/* err, val */) {
+    client.get('hello', function(/* err, val */) {
       suite.cycles++;
     });
   })
   // add listeners
-  .on('cycle', function(event) {
-    console.log(String(event.target) + "     " + suite.cycles);
-  });
-  client.set("hello", makeString(10240), function(/* err, val */) {
+    .on('cycle', function(event) {
+      console.log(String(event.target) + '     ' + suite.cycles);
+    });
+  client.set('hello', makeString(10240), function(/* err, val */) {
     // run async
     suite.run({ 'async': true });
   });

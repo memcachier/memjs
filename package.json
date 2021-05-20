@@ -16,23 +16,27 @@
     "url": "git://github.com/memcachier/memjs.git"
   },
   "engines": {
-    "node": ">=0.10.0"
+    "node": ">=12"
   },
   "main": "./lib/memjs/memjs",
   "directories": {
     "lib": "./lib/memjs"
   },
   "scripts": {
-    "test": "eslint ./lib/memjs/ ./test/ && tap -R spec ./test/*.js",
-    "bench": "NODE_PATH=lib/memjs/ node bench/memjs.js",
-    "bench-timers": "NODE_PATH=lib/memjs/ node bench/timers.js"
+    "tsc": "rm -rf ./lib && tsc",
+    "test": "npm run-script tsc && tap --no-coverage -R spec ./lib/test/*.js",
+    "bench": "npm run-script tsc && NODE_PATH=lib/memjs/ node bench/memjs.js",
+    "bench-timers": "npm run-script tsc && NODE_PATH=lib/memjs/ node bench/timers.js",
+    "ensure-clean": "npm run-script tsc && bin/ensure-clean.sh"
   },
-  "dependencies": {},
   "devDependencies": {
+    "@types/node": "12.20.7",
+    "@types/tap": "^14.10.3",
     "benchmark": "^2.1.4",
     "docco": "^0.8.0",
-    "eslint": "4.18.2",
+    "eslint": "^7.23.0",
     "microtime": "^3.0.0",
-    "tap": "4.0.*"
+    "tap": "14.0.*",
+    "typescript": "4.2.4"
   }
 }

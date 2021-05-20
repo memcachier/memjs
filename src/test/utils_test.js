@@ -1,29 +1,29 @@
-var test = require('tap').test;
-var utils = require('../lib/memjs/utils');
+const test = require('tap').test;
+const utils = require('../memjs/utils');
 
 test('MergePresereParameter', function(t) {
-  var result = utils.merge({}, { retries: 2 });
+  const result = utils.merge({}, { retries: 2 });
   t.equal(2, result.retries);
   t.end();
 });
 
 test('MergePresereParameterWhenZero', function(t) {
-  var result = utils.merge({ retries: 0 }, { retries: 2 });
+  const result = utils.merge({ retries: 0 }, { retries: 2 });
   t.equal(0, result.retries);
   t.end();
 });
 
 test('MergeDontPresereParameterWhenUndefinedOrNull', function(t) {
-  var result = utils.merge({ retries: undefined }, { retries: 2 });
+  const result = utils.merge({ retries: undefined }, { retries: 2 });
   t.equal(2, result.retries);
 
-  var result2 = utils.merge({ retries: null }, { retries: 2 });
+  const result2 = utils.merge({ retries: null }, { retries: 2 });
   t.equal(2, result2.retries);
   t.end();
 });
 
 test('MakeAmountInitialAndExpiration', function(t) {
-  var extras, buf, fixture;
+  let extras, buf, fixture;
   extras = utils.makeAmountInitialAndExpiration(1, 1, 1);
   fixture = Buffer.from('0000000000000001000000000000000100000001', 'hex');
   t.equal(20, extras.length);
@@ -43,8 +43,8 @@ test('MakeAmountInitialAndExpiration', function(t) {
 });
 
 exports.testMakeRequestBufferExtrasLength = function(t) {
-  var extras = utils.makeAmountInitialAndExpiration(255, 1, 1);
-  var buf = utils.makeRequestBuffer(0, 'test', extras, 1, 0);
+  const extras = utils.makeAmountInitialAndExpiration(255, 1, 1);
+  const buf = utils.makeRequestBuffer(0, 'test', extras, 1, 0);
   t.equal(20, buf[4]);
   t.end();
 };

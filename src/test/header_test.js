@@ -1,9 +1,9 @@
-var test = require('tap').test;
-var header = require('../lib/memjs/header');
+const test = require('tap').test;
+const header = require('../memjs/header');
 
 test('ParseHeaderResponse', function(t) {
-  var headerBuf = Buffer.from([0x81, 1, 7, 0, 4, 3, 0, 1, 0, 0, 0, 9, 0, 0, 0, 0, 0x0a, 0, 0, 0, 0, 0, 0, 0]);
-  var responseHeader = header.fromBuffer(headerBuf);
+  const headerBuf = Buffer.from([0x81, 1, 7, 0, 4, 3, 0, 1, 0, 0, 0, 9, 0, 0, 0, 0, 0x0a, 0, 0, 0, 0, 0, 0, 0]);
+  const responseHeader = header.fromBuffer(headerBuf);
   t.equal(0x81, responseHeader.magic);
   t.equal(1, responseHeader.opcode);
   t.equal(0x0700, responseHeader.keyLength);
@@ -17,7 +17,7 @@ test('ParseHeaderResponse', function(t) {
 });
 
 test('DumpHeader', function(t) {
-  var responseHeader = {
+  const responseHeader = {
     magic: 0x81,
     opcode: 1,
     keyLength: 0x700,
@@ -28,13 +28,13 @@ test('DumpHeader', function(t) {
     opaque: 0,
     cas: Buffer.from([0x0a, 0, 0, 0, 0, 0, 0, 0])
   };
-  var expected = Buffer.from([0x81, 1, 7, 0, 4, 0, 0, 1, 0, 0, 0, 9, 0, 0, 0, 0, 0x0a, 0, 0, 0, 0, 0, 0, 0]);
+  const expected = Buffer.from([0x81, 1, 7, 0, 4, 0, 0, 1, 0, 0, 0, 9, 0, 0, 0, 0, 0x0a, 0, 0, 0, 0, 0, 0, 0]);
   t.equal(header.toBuffer(responseHeader).toString(), expected.toString());
   t.end();
 });
 
 test('DumpHeaderNoCas', function(t) {
-  var responseHeader = {
+  const responseHeader = {
     magic: 0x81,
     opcode: 0,
     keyLength: 0x0,
@@ -44,7 +44,7 @@ test('DumpHeaderNoCas', function(t) {
     totalBodyLength: 0,
     opaque: 0
   };
-  var expected = Buffer.from([0x81, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
+  const expected = Buffer.from([0x81, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
   t.equal(header.toBuffer(responseHeader).toString(), expected.toString());
   t.end();
 });
