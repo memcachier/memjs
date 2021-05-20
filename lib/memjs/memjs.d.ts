@@ -118,7 +118,7 @@ declare class Client<Value = MaybeBuffer, Extras = MaybeBuffer> {
      *
      * cf https://github.com/couchbase/memcached/blob/master/docs/BinaryProtocol.md#0x0d-getkq-get-with-key-quietly
      */
-    _buildGetMultiRequest(keys: string[]): Buffer;
+    _buildGetMultiRequest(keys: string[], seq: number): Buffer;
     /** Executing a pipelined (multi) get against a single server. This is a private implementation detail of getMulti. */
     _getMultiToServer<Keys extends string>(serv: Server, keys: Keys[]): Promise<GetMultiResult<Keys, Value, Extras>>;
     /**
@@ -292,7 +292,7 @@ declare class Client<Value = MaybeBuffer, Extras = MaybeBuffer> {
      */
     perform(key: string, request: Buffer, seq: number, retries?: number): Promise<Message>;
     performOnServer(server: Server, request: Buffer, seq: number, callback: ResponseOrErrorCallback, retries?: number): void;
-    incrSeq(): void;
+    incrSeq(): number;
     private createAndLogError;
     /**
      * Log an error to the logger, then return the error.

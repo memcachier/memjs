@@ -260,7 +260,7 @@ class Client<Value = MaybeBuffer, Extras = MaybeBuffer> {
    *
    * cf https://github.com/couchbase/memcached/blob/master/docs/BinaryProtocol.md#0x0d-getkq-get-with-key-quietly
    */
-  _buildGetMultiRequest(keys: string[]): Buffer {
+  _buildGetMultiRequest(keys: string[], seq: number): Buffer {
     // start at 24 for the no-op command at the end
     let requestSize = 24;
     for (const keyIdx in keys) {
@@ -277,7 +277,7 @@ class Client<Value = MaybeBuffer, Extras = MaybeBuffer> {
         key,
         "",
         "",
-        this.seq,
+        seq,
         request,
         bytesWritten
       );
@@ -288,7 +288,7 @@ class Client<Value = MaybeBuffer, Extras = MaybeBuffer> {
       "",
       "",
       "",
-      this.seq,
+      seq,
       request,
       bytesWritten
     );
@@ -342,10 +342,10 @@ class Client<Value = MaybeBuffer, Extras = MaybeBuffer> {
       // after the first response. Logic in server.js.
       handle.quiet = true;
 
-      const request = this._buildGetMultiRequest(keys);
+      const seq = this.incrSeq();
+      const request = this._buildGetMultiRequest(keys, seq);
       serv.onResponse(this.seq, handle);
       serv.onError(this.seq, reject);
-      this.incrSeq();
       serv.write(request);
     });
   }
@@ -1028,6 +1028,8 @@ class Client<Value = MaybeBuffer, Extras = MaybeBuffer> {
 
     // Wrap `this.seq` to 32-bits since the field we fit it into is only 32-bits.
     this.seq &= 0xffffffff;
+
+    return this.seq
   }
 
   private createAndLogError(
