@@ -39,7 +39,7 @@ To install from git:
 
 MemJS was designed for the MemCachier memcache service but will work with any
 memcache server that speaks the binary protocol. Many software repositories
-have a version of memcacached available for installation:
+have a version of memcached available for installation:
 
 ### Ubuntu ###
 
