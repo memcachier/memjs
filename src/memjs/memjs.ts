@@ -914,22 +914,18 @@ class Client<Value = MaybeBuffer, Extras = MaybeBuffer> {
    * in the backend pool, errors if any one of them has an
    * error
    */
-  async versionAll(
-    triedCallback?: (response: string) => void,
-    resultCallback?: (response: string) => void
-  ): Promise<{
+  async versionAll(callbacks?: {
+    beforePing?: (response: string) => void;
+    afterPing?: (response: string) => void;
+  }): Promise<{
     values: Record<string, Value | null>;
   }> {
     const versionObjects = await Promise.all(
       this.serverKeys.map((serverKey) => {
-        if (triedCallback !== undefined) {
-          triedCallback(serverKey);
-        }
         const server = this.serverKeyToServer(serverKey);
+        callbacks?.beforePing?.(serverKey);
         return this._version(server).then((response) => {
-          if (resultCallback !== undefined) {
-            resultCallback(serverKey);
-          }
+          callbacks?.afterPing?.(serverKey);
           return { serverKey: serverKey, value: response.value };
         });
       })

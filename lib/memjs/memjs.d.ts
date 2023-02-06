@@ -20,7 +20,7 @@ interface SerializerProp<Value, Extras> {
 }
 /**
  * The client has partial support for serializing and deserializing values from the
- * Buffer byte strings we recieve from the wire. The default serializer is for MaybeBuffer.
+ * Buffer byte strings we receive from the wire. The default serializer is for MaybeBuffer.
  *
  * If Value and Extras are of type Buffer, then return type WhenBuffer. Otherwise,
  * return type NotBuffer.
@@ -273,7 +273,10 @@ declare class Client<Value = MaybeBuffer, Extras = MaybeBuffer> {
      * in the backend pool, errors if any one of them has an
      * error
      */
-    versionAll(triedCallback?: (response: string) => void, resultCallback?: (response: string) => void): Promise<{
+    versionAll(callbacks?: {
+        beforePing?: (response: string) => void;
+        afterPing?: (response: string) => void;
+    }): Promise<{
         values: Record<string, Value | null>;
     }>;
     /**
