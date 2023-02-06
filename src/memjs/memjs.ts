@@ -61,21 +61,17 @@ interface SerializerProp<Value, Extras> {
 
 /**
  * The client has partial support for serializing and deserializing values from the
- * Buffer byte strings we recieve from the wire. The default serializer is for MaybeBuffer.
+ * Buffer byte strings we receive from the wire. The default serializer is for MaybeBuffer.
  *
  * If Value and Extras are of type Buffer, then return type WhenBuffer. Otherwise,
  * return type NotBuffer.
  */
-type IfBuffer<
-  Value,
-  Extras,
-  WhenValueAndExtrasAreBuffers,
-  NotBuffer
-> = Value extends Buffer
-  ? Extras extends Buffer
-    ? WhenValueAndExtrasAreBuffers
-    : NotBuffer
-  : NotBuffer;
+type IfBuffer<Value, Extras, WhenValueAndExtrasAreBuffers, NotBuffer> =
+  Value extends Buffer
+    ? Extras extends Buffer
+      ? WhenValueAndExtrasAreBuffers
+      : NotBuffer
+    : NotBuffer;
 
 export type GivenClientOptions<Value, Extras> = Partial<BaseClientOptions> &
   IfBuffer<
@@ -313,7 +309,10 @@ class Client<Value = MaybeBuffer, Extras = MaybeBuffer> {
               // This isn't technically needed here because the logic in server.js also checks if totalBodyLength === 0, but our unittests aren't great about setting that field, and also this makes it more explicit
               handle.quiet = false;
               resolve(responseMap);
-            } else if (response.header.opcode === constants.OP_GETK || response.header.opcode === constants.OP_GETKQ) {
+            } else if (
+              response.header.opcode === constants.OP_GETK ||
+              response.header.opcode === constants.OP_GETKQ
+            ) {
               const deserialized = this.serializer.deserialize(
                 response.header.opcode,
                 response.val,
@@ -322,13 +321,19 @@ class Client<Value = MaybeBuffer, Extras = MaybeBuffer> {
               const key = response.key.toString();
               if (key.length === 0) {
                 return reject(
-                  new Error("Recieved empty key in getMulti: " + JSON.stringify(response))
+                  new Error(
+                    "Recieved empty key in getMulti: " +
+                      JSON.stringify(response)
+                  )
                 );
               }
               responseMap[key] = { ...deserialized, cas: response.header.cas };
             } else {
               return reject(
-                new Error("Recieved response in getMulti for unknown opcode: " + JSON.stringify(response))
+                new Error(
+                  "Recieved response in getMulti for unknown opcode: " +
+                    JSON.stringify(response)
+                )
               );
             }
             break;
@@ -909,7 +914,10 @@ class Client<Value = MaybeBuffer, Extras = MaybeBuffer> {
    * in the backend pool, errors if any one of them has an
    * error
    */
-  async versionAll(triedCallback?: (response: string) => void, resultCallback?: (response: string) => void): Promise<{
+  async versionAll(
+    triedCallback?: (response: string) => void,
+    resultCallback?: (response: string) => void
+  ): Promise<{
     values: Record<string, Value | null>;
   }> {
     const versionObjects = await Promise.all(
@@ -1034,7 +1042,7 @@ class Client<Value = MaybeBuffer, Extras = MaybeBuffer> {
     // Wrap `this.seq` to 32-bits since the field we fit it into is only 32-bits.
     this.seq &= 0xffffffff;
 
-    return this.seq
+    return this.seq;
   }
 
   private createAndLogError(
