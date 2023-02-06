@@ -274,8 +274,8 @@ declare class Client<Value = MaybeBuffer, Extras = MaybeBuffer> {
      * error
      */
     versionAll(callbacks?: {
-        beforePing?: (response: string) => void;
-        afterPing?: (response: string) => void;
+        beforePing?: (serverKey: string) => void;
+        afterPing?: (serverKey: string) => void;
     }): Promise<{
         values: Record<string, Value | null>;
     }>;
