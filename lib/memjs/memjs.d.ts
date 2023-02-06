@@ -273,7 +273,7 @@ declare class Client<Value = MaybeBuffer, Extras = MaybeBuffer> {
      * in the backend pool, errors if any one of them has an
      * error
      */
-    versionAll(): Promise<{
+    versionAll(triedCallback?: (response: string) => void, resultCallback?: (response: string) => void): Promise<{
         values: Record<string, Value | null>;
     }>;
     /**
