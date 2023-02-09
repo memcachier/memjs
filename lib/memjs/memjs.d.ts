@@ -272,6 +272,9 @@ declare class Client<Value = MaybeBuffer, Extras = MaybeBuffer> {
      * Retrieves the server version from all the servers
      * in the backend pool, errors if any one of them has an
      * error
+     *
+     * Callbacks functions are called before/after we ping memcached
+     * and used to log which hosts are timing out.
      */
     versionAll(callbacks?: {
         beforePing?: (serverKey: string) => void;
