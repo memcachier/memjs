@@ -20,7 +20,7 @@ interface SerializerProp<Value, Extras> {
 }
 /**
  * The client has partial support for serializing and deserializing values from the
- * Buffer byte strings we recieve from the wire. The default serializer is for MaybeBuffer.
+ * Buffer byte strings we receive from the wire. The default serializer is for MaybeBuffer.
  *
  * If Value and Extras are of type Buffer, then return type WhenBuffer. Otherwise,
  * return type NotBuffer.
@@ -272,8 +272,14 @@ declare class Client<Value = MaybeBuffer, Extras = MaybeBuffer> {
      * Retrieves the server version from all the servers
      * in the backend pool, errors if any one of them has an
      * error
+     *
+     * Callbacks functions are called before/after we ping memcached
+     * and used to log which hosts are timing out.
      */
-    versionAll(): Promise<{
+    versionAll(callbacks?: {
+        beforePing?: (serverKey: string) => void;
+        afterPing?: (serverKey: string) => void;
+    }): Promise<{
         values: Record<string, Value | null>;
     }>;
     /**

@@ -5,6 +5,43 @@ MemJS
 [![Build Status](https://secure.travis-ci.org/alevy/memjs.png)](http://travis-ci.org/alevy/memjs?branch=master)
 [![Gitter](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/alevy/memjs?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge)
 
+---
+
+Notion fork of MemJS
+
+## Making Changes
+
+see [this](https://dev.notion.so/notion/Developing-dependencies-locally-6705f66af9a24944ac875c44234e68f1) doc
+
+**Linking**
+
+Clone `memjs`, run `npm install`, link `memjs` to local Notion:
+
+```
+cd ~/memjs
+npm link
+
+cd ~/notion-next
+npm link memjs
+```
+
+**Developing**
+
+Run `npx tsc --watch` in the `memjs` directory.
+
+**Unlinking**
+
+```
+cd ~/notion-next
+npm unlink --no-save package-js
+
+cd ~/package-js/
+npm unlink
+```
+
+---
+
+
 MemJS is a pure Node.js client library for using memcache, in particular, the
 [MemCachier](http://memcachier.com/) service. It
 uses the binary protocol and support SASL authentication.
