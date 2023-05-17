@@ -214,15 +214,16 @@ export class Server extends events.EventEmitter {
 
       // setup error handler
       self._socket.on("error", function (error) {
+        self.error(error);
+      });
+
+      self._socket.on("close", function () {
         self.connected = false;
         if (self.timeoutSet) {
-          if (self._socket) {
-            self._socket.setTimeout(0);
-          }
+          self._socket?.setTimeout(0);
           self.timeoutSet = false;
         }
         self._socket = undefined;
-        self.error(error);
       });
 
       // setup connection timeout handler
