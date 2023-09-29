@@ -491,6 +491,320 @@ test("GetMultiError", function (t) {
   );
 });
 
+test("GetMultiWithErrorsSuccessful_SingleBackend", async function (t) {
+  let n = 0;
+  const dummyServer = makeDummyServer("dummyServer");
+  dummyServer.write = function (requestBuf) {
+    const requests = Utils.parseMessages(requestBuf);
+    t.equal(requests.length, 4);
+    n += 1;
+
+    function checkAndRespond(
+      request: Utils.Message,
+      key: string,
+      value: string
+    ) {
+      t.equal(key, request.key.toString());
+      t.equal(constants.OP_GETKQ, request.header.opcode);
+
+      dummyServer.respond({
+        header: {
+          status: 0,
+          opaque: request.header.opaque,
+          opcode: request.header.opcode,
+          cas: Buffer.from(`cas ${key}`),
+        },
+        key: key,
+        val: value,
+        extras: "flagshere",
+      });
+    }
+    checkAndRespond(requests[0], "hello1", "world1");
+    checkAndRespond(requests[1], "hello2", "world2");
+    checkAndRespond(requests[2], "hello3", "world3");
+
+    t.equal(constants.OP_NO_OP, requests[3].header.opcode);
+    dummyServer.respond({
+      header: {
+        status: 0,
+        opaque: requests[3].header.opaque,
+        opcode: requests[3].header.opcode,
+      },
+    });
+  };
+
+  const client = makeClient([dummyServer]);
+  const result = await client.getMultiWithErrors(["hello1", "hello2", "hello3"]);
+  t.deepEqual(
+    {
+      result: {
+        hello1: {
+          value: "world1",
+          extras: "flagshere",
+          cas: Buffer.from("cas hello1"),
+        },
+        hello2: {
+          value: "world2",
+          extras: "flagshere",
+          cas: Buffer.from("cas hello2"),
+        },
+        hello3: {
+          value: "world3",
+          extras: "flagshere",
+          cas: Buffer.from("cas hello3"),
+        },
+      },
+      errors: []
+    } as MemJS.GetMultiWithErrorsResult<"hello1" | "hello2" | "hello3">,
+    result
+  );
+  t.equal(1, n, "Ensure getMultiWithErrors is called");
+});
+
+test("GetMultiWithErrorsSuccessful_MultiBackend", async function (t) {
+  // the mappings from key to server were computer by just manually running the default hash on them
+
+  const dummyServer1 = makeDummyMultiGetServerResponder(
+    t,
+    {
+      hello2: "world2",
+      hello4: "world4",
+    },
+    "dummyServer1"
+  );
+  const dummyServer2 = makeDummyMultiGetServerResponder(
+    t,
+    {
+      hello1: "world1",
+      hello3: "world3",
+    },
+    "dummyServer2"
+  );
+  const servers = [dummyServer1, dummyServer2];
+
+  const client = makeClient(servers);
+  const val = await client.getMultiWithErrors(["hello1", "hello2", "hello3", "hello4"]);
+
+  const expected: MemJS.GetMultiWithErrorsResult<
+    "hello1" | "hello2" | "hello3" | "hello4"
+  > = {
+    result: {
+      hello1: {
+        value: "world1",
+        extras: DummyMultiGetFlags,
+        cas: undefined,
+      },
+      hello2: {
+        value: "world2",
+        extras: DummyMultiGetFlags,
+        cas: undefined,
+      },
+      hello3: {
+        value: "world3",
+        extras: DummyMultiGetFlags,
+        cas: undefined,
+      },
+      hello4: {
+        value: "world4",
+        extras: DummyMultiGetFlags,
+        cas: undefined,
+      },
+    },
+    errors: [],
+  };
+  t.deepEqual(expected, val);
+  testAllCallbacksEmpty(t, dummyServer1);
+  testAllCallbacksEmpty(t, dummyServer2);
+});
+
+test("GetMultiWithErrorsSuccessful_MissingKeys_MultiBackend", async function (t) {
+  // the mappings from key to server were computed by just manually running the default hash on them
+  const dummyServer1 = makeDummyMultiGetServerResponder(
+    t,
+    {
+      hello2: undefined,
+      hello4: "world4",
+    },
+    "dummyServer1"
+  );
+  const dummyServer2 = makeDummyMultiGetServerResponder(
+    t,
+    {
+      hello1: "world1",
+      hello3: "world3",
+    },
+    "dummyServer2"
+  );
+  const servers = [dummyServer1, dummyServer2];
+
+  const client = makeClient(servers);
+  const val = await client.getMultiWithErrors(["hello1", "hello2", "hello3", "hello4"]);
+
+  const expected: MemJS.GetMultiWithErrorsResult<"hello1" | "hello3" | "hello4"> = {
+    result: {
+      hello1: {
+        value: "world1",
+        extras: DummyMultiGetFlags,
+        cas: undefined,
+      },
+      hello3: {
+        value: "world3",
+        extras: DummyMultiGetFlags,
+        cas: undefined,
+      },
+      hello4: {
+        value: "world4",
+        extras: DummyMultiGetFlags,
+        cas: undefined,
+      },
+    },
+    errors: []
+  };
+  t.deepEqual(expected, val);
+  testAllCallbacksEmpty(t, dummyServer1);
+  testAllCallbacksEmpty(t, dummyServer2);
+});
+
+test("GetMultiWithErrorsError_MultiBackend", async function (t) {
+  // the mappings from key to server were computed by just manually running the default hash on them
+  const dummyServer1 = makeDummyMultiGetServerResponder(
+    t,
+    {
+      hello2: undefined,
+      hello4: "world4",
+    },
+    "dummyServer1"
+  );
+  const dummyServer2 = makeDummyMultiGetServerResponder(
+    t,
+    {
+      hello1: "world1",
+      hello3: "world3",
+    },
+    "dummyServer2"
+  );
+  dummyServer2.write = function () {
+    dummyServer2.error({
+      name: "ErrorName",
+      message: "This is an expected error.",
+    });
+  };
+  const servers = [dummyServer1, dummyServer2];
+
+  const client = makeClient(servers);
+
+  const val = await client.getMultiWithErrors(["hello1", "hello2", "hello3", "hello4"]);
+
+  const expected: MemJS.GetMultiWithErrorsResult<"hello1" | "hello3" | "hello4"> = {
+    result: {
+      hello4: {
+        value: "world4",
+        extras: DummyMultiGetFlags,
+        cas: undefined,
+      },
+    },
+    errors: [
+      {
+        error: {
+          name: "ErrorName",
+          message: "This is an expected error.",
+        },
+        keys: ["hello1", "hello3"],
+        serverKey: "dummyServer2:undefined", // host:port
+      }
+    ],
+  };
+  t.deepEqual(expected, val);
+  testAllCallbacksEmpty(t, dummyServer1);
+  testAllCallbacksEmpty(t, dummyServer2);
+});
+
+test("GetMultiWithErrorsSuccessfulWithMissingKeys", async function (t) {
+  const dummyServer = makeDummyMultiGetServerResponder(t, {
+    hello1: "world1",
+    hello2: undefined,
+    hello3: "world3",
+  });
+
+  const client = makeClient([dummyServer], { serializer: noopSerializer });
+  const assertor = function (
+    err: Error | null,
+    val: MemJS.GetMultiWithErrorsResult | null
+  ) {
+    t.equal(null, err);
+  };
+  const val = await client.getMultiWithErrors(["hello1", "hello2", "hello3"]);
+  const expected: MemJS.GetMultiWithErrorsResult<"hello1" | "hello3"> = {
+    result: {
+      hello1: {
+        value: "world1",
+        extras: DummyMultiGetFlags,
+        cas: undefined,
+      },
+      hello3: {
+        value: "world3",
+        extras: DummyMultiGetFlags,
+        cas: undefined,
+      },
+    },
+    errors: [],
+  };
+  t.deepEqual(expected, val);
+  testAllCallbacksEmpty(t, dummyServer);
+});
+
+test("GetMultiWithErrorsError", async function (t) {
+  const dummyServer = makeDummyServer("dummyServer");
+  dummyServer.write = function (requestBuf) {
+    const requests = Utils.parseMessages(requestBuf);
+    t.equal(requests.length, 4);
+
+    function checkAndRespond(
+      request: Utils.Message,
+      key: string,
+      value: string
+    ) {
+      t.equal(key, request.key.toString());
+      t.equal(constants.OP_GETKQ, request.header.opcode);
+
+      dummyServer.respond({
+        header: {
+          status: 0,
+          opaque: request.header.opaque,
+          opcode: request.header.opcode,
+        },
+        key: key,
+        val: value,
+        extras: "flagshere",
+      });
+    }
+    checkAndRespond(requests[0], "hello1", "world1");
+    dummyServer.error({
+      name: "ErrorName",
+      message: "This is an expected error.",
+    });
+  };
+
+  const client = makeClient([dummyServer]);
+
+  const val = await client.getMultiWithErrors(["hello1", "hello2", "hello3"]);
+  const expected: MemJS.GetMultiWithErrorsResult<"hello1" | "hello2" | "hello3"> = {
+    result: {},
+    errors: [
+      {
+        error: {
+          name: "ErrorName",
+          message: "This is an expected error.",
+        },
+        keys: ["hello1", "hello2", "hello3"],
+        serverKey: "dummyServer:undefined",
+      }
+    ],
+  };
+  t.deepEqual(expected, val);
+  testAllCallbacksEmpty(t, dummyServer);
+});
+
 test("SetSuccessful", async function (t) {
   const casToken = Buffer.from("cas toke");
   let n = 0;

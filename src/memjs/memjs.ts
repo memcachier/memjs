@@ -420,17 +420,9 @@ class Client<Value = MaybeBuffer, Extras = MaybeBuffer> {
         const server = this.serverKeyToServer(serverKey);
         try {
           return await this._getMultiToServer(server, serverKeytoLookupKeys[serverKey]);
-        } catch (err) {
-          let error: Error;
-          if (err instanceof Error) {
-            error = err;
-          } else {
-            error = new Error("Unknown Error");
-            (error as any).thrown = err;
-          }
-
+        } catch (error) {
           errors.push({
-            error,
+            error: error as Error,
             serverKey,
             keys: serverKeytoLookupKeys[serverKey]
           });
