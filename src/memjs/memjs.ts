@@ -97,6 +97,21 @@ export type GetMultiResult<
   [K in Keys]?: GetResult<Value, Extras>;
 };
 
+export interface GetMultiError<Keys extends string = string> {
+  error: Error;
+  serverKey: string;
+  keys: Keys[];
+}
+
+export interface GetMultiWithErrorsResult<
+Keys extends string = string,
+Value = MaybeBuffer,
+Extras = MaybeBuffer
+> {
+  result: GetMultiResult<Keys, Value, Extras>;
+  errors: GetMultiError<Keys>[];
+}
+
 class Client<Value = MaybeBuffer, Extras = MaybeBuffer> {
   servers: Server[];
   seq: number;
@@ -382,6 +397,40 @@ class Client<Value = MaybeBuffer, Extras = MaybeBuffer> {
     );
 
     return Object.assign({}, ...results);
+  }
+
+  async getMultiWithErrors<Keys extends string>(
+    keys: Keys[]
+  ): Promise<GetMultiWithErrorsResult<Keys, Value, Extras>> {
+    const serverKeytoLookupKeys: {
+      [serverKey: string]: Keys[];
+    } = {};
+    keys.forEach((lookupKey) => {
+      const serverKey = this.lookupKeyToServerKey(lookupKey);
+      if (!serverKeytoLookupKeys[serverKey]) {
+        serverKeytoLookupKeys[serverKey] = [];
+      }
+      serverKeytoLookupKeys[serverKey].push(lookupKey);
+    });
+
+    const usedServerKeys = Object.keys(serverKeytoLookupKeys);
+    const errors: GetMultiError<Keys>[] = [];
+    const results = await Promise.all(
+      usedServerKeys.map(async (serverKey) => {
+        const server = this.serverKeyToServer(serverKey);
+        try {
+          return await this._getMultiToServer(server, serverKeytoLookupKeys[serverKey]);
+        } catch (error) {
+          errors.push({
+            error: error as Error,
+            serverKey,
+            keys: serverKeytoLookupKeys[serverKey]
+          });
+        }
+      })
+    );
+
+    return { result: Object.assign({}, ...results), errors };
   }
 
   /**

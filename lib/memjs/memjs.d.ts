@@ -36,6 +36,15 @@ export interface GetResult<Value = MaybeBuffer, Extras = MaybeBuffer> {
 export declare type GetMultiResult<Keys extends string = string, Value = MaybeBuffer, Extras = MaybeBuffer> = {
     [K in Keys]?: GetResult<Value, Extras>;
 };
+export interface GetMultiError<Keys extends string = string> {
+    error: Error;
+    serverKey: string;
+    keys: Keys[];
+}
+export interface GetMultiWithErrorsResult<Keys extends string = string, Value = MaybeBuffer, Extras = MaybeBuffer> {
+    result: GetMultiResult<Keys, Value, Extras>;
+    errors: GetMultiError<Keys>[];
+}
 declare class Client<Value = MaybeBuffer, Extras = MaybeBuffer> {
     servers: Server[];
     seq: number;
@@ -126,6 +135,7 @@ declare class Client<Value = MaybeBuffer, Extras = MaybeBuffer> {
      * requested keys to results, or null if the key was not found.
      */
     getMulti<Keys extends string>(keys: Keys[]): Promise<GetMultiResult<Keys, Value, Extras>>;
+    getMultiWithErrors<Keys extends string>(keys: Keys[]): Promise<GetMultiWithErrorsResult<Keys, Value, Extras>>;
     /**
      * Sets `key` to `value`.
      */
