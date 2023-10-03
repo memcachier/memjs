@@ -144,10 +144,19 @@ export interface Message {
   extras: Buffer;
 }
 
+const ERROR_TOO_MANY_OPEN_CONNECTIONS = "ERROR Too many open connections\r\n";
+
 export const parseMessage = function (dataBuf: Buffer): Message | false {
   if (dataBuf.length < 24) {
     return false;
   }
+
+  if (dataBuf.length === ERROR_TOO_MANY_OPEN_CONNECTIONS.length) {
+    if (dataBuf.toString() === ERROR_TOO_MANY_OPEN_CONNECTIONS) {
+      throw new Error("ERROR Too many open connections");
+    }
+  }
+
   const responseHeader = header.fromBuffer(dataBuf);
 
   if (

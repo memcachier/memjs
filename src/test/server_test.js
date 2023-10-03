@@ -35,6 +35,20 @@ test('ResponseHandler with authentication error', function(t) {
   t.end();
 });
 
+test('ResponseHandler with too many connections error', function(t) {
+  const server = new MemJS.Server('localhost', 11211);
+
+  server.onError('test', function(err) {
+    t.equal('ERROR Too many open connections', err.message);
+  });
+
+  const responseBuf = Buffer.from('ERROR Too many open connections\r\n');
+
+  server.responseHandler(responseBuf);
+
+  t.end();
+});
+
 test('Authenticate', function(t) {
   const expectedBuf = makeRequestBuffer(0x21, 'PLAIN', '', '\0user1\0password');
   const dummySocket = {

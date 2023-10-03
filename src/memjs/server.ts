@@ -151,7 +151,14 @@ export class Server extends events.EventEmitter {
     return this.responseBuffer;
   }
   responseHandler(dataBuf: Buffer) {
-    let response = parseMessage(this.appendToBuffer(dataBuf));
+    let response: Message | false;
+    try {
+      response = parseMessage(this.appendToBuffer(dataBuf));
+    } catch (e) {
+      this.error(e as Error);
+      return;
+    }
+
     let respLength: number;
     while (response) {
       if (response.header.opcode === 0x20) {
@@ -218,6 +225,9 @@ export class Server extends events.EventEmitter {
       });
 
       self._socket.on("close", function () {
+        if (Object.keys(self.errorCallbacks).length > 0) {
+          self.error(new Error("socket closed unexpectedly."));
+        }
         self.connected = false;
         if (self.timeoutSet) {
           self._socket?.setTimeout(0);
