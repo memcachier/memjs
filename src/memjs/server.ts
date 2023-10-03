@@ -123,6 +123,7 @@ export class Server extends events.EventEmitter {
     this.requestTimeouts = [];
     this.errorCallbacks = {};
     this.timeoutSet = false;
+    this.responseBuffer = Buffer.from([]);
     if (this._socket) {
       this._socket.destroy();
       delete this._socket;
@@ -181,6 +182,7 @@ export class Server extends events.EventEmitter {
     if (!self._socket) {
       // CASE 1: completely new socket
       self.connected = false;
+      self.responseBuffer = Buffer.from([]);
       self._socket = net.connect(
         /* TODO: allowing port to be string or undefined is used by the tests, but seems bad overall. */
         typeof this.port === "string"
@@ -229,6 +231,7 @@ export class Server extends events.EventEmitter {
           self.error(new Error("socket closed unexpectedly."));
         }
         self.connected = false;
+        self.responseBuffer = Buffer.from([]);
         if (self.timeoutSet) {
           self._socket?.setTimeout(0);
           self.timeoutSet = false;
