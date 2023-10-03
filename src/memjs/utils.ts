@@ -144,6 +144,9 @@ export interface Message {
   extras: Buffer;
 }
 
+// Error message from memcached when it rejects a request for having too many
+// open connections
+// https://github.com/memcached/memcached/blob/efee763c93249358ea5b3b42c7fd4e57e2599c30/memcached.c#L3044
 const ERROR_TOO_MANY_OPEN_CONNECTIONS = "ERROR Too many open connections\r\n";
 
 export const parseMessage = function (dataBuf: Buffer): Message | false {
