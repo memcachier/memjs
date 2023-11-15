@@ -990,6 +990,45 @@ class Client<Value = MaybeBuffer, Extras = MaybeBuffer> {
   }
 
   /**
+   * Retrieves the server version (often used as a status check) from all the
+   * servers in the backend pool. If any servers error, the error is returned
+   * with the results.
+   *
+   * Callback functions are called before/after we ping each memcached node to
+   * allow logging of incremental results and timeouts.
+   *
+   * @param callbacks
+   * @returns 
+   */
+  async versionAllWithErrors(callbacks?: {
+    beforePing?: (serverKey: string) => void;
+    afterPing?: (serverKey: string, error?: Error) => void;
+  }): Promise<{
+    values: Record<string, {version?: Value | null, error?: Error}>
+  }> {
+    const versionObjects = await Promise.all(
+      this.serverKeys.map(async (serverKey) => {
+        const server = this.serverKeyToServer(serverKey);
+        callbacks?.beforePing?.(serverKey);
+        try {
+          const response = await this._version(server);
+          callbacks?.afterPing?.(serverKey);
+          return { serverKey: serverKey, value: { version: response.value } };
+        } catch (err) {
+          const error = err as Error;
+          callbacks?.afterPing?.(serverKey, error);
+          return { serverKey: serverKey, value: { error } };
+        }
+      })
+    );
+    const values = versionObjects.reduce((accumulator, versionObject) => {
+      accumulator[versionObject.serverKey] = versionObject.value;
+      return accumulator;
+    }, {} as Record<string, {version?: Value | null, error?: Error}>);
+    return { values: values };
+  }
+
+  /**
    * Closes (abruptly) connections to all the servers.
    * @see this.quit
    */
