@@ -293,6 +293,26 @@ declare class Client<Value = MaybeBuffer, Extras = MaybeBuffer> {
         values: Record<string, Value | null>;
     }>;
     /**
+     * Retrieves the server version (often used as a status check) from all the
+     * servers in the backend pool. If any servers error, the error is returned
+     * with the results.
+     *
+     * Callback functions are called before/after we ping each memcached node to
+     * allow logging of incremental results and timeouts.
+     *
+     * @param callbacks
+     * @returns
+     */
+    versionAllWithErrors(callbacks?: {
+        beforePing?: (serverKey: string) => void;
+        afterPing?: (serverKey: string, error?: Error) => void;
+    }): Promise<{
+        values: Record<string, {
+            version?: Value | null;
+            error?: Error;
+        }>;
+    }>;
+    /**
      * Closes (abruptly) connections to all the servers.
      * @see this.quit
      */

@@ -2,7 +2,7 @@
   "author": "Amit Levy",
   "name": "memjs",
   "description": "A memcache client for node using the binary protocol and SASL authentication",
-  "version": "1.2.3",
+  "version": "1.2.4",
   "license": "MIT",
   "homepage": "http://github.com/memcachier/memjs",
   "keywords": [

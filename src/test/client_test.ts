@@ -1747,3 +1747,58 @@ tap.only("VersionAllSomeFailed", function (t) {
     assertor(err);
   });
 });
+
+test("VersionAllWithErrorsSuccessful", function (t) {
+  const dummyServer1 = makeDummyVersionServer(t, "dummyServer1", "1.0.0");
+  const dummyServer2 = makeDummyVersionServer(t, "dummyServer2", "2.0.0");
+  const dummyServer3 = makeDummyVersionServer(t, "dummyServer3", "3.0.0");
+
+  const client = makeClient([dummyServer1, dummyServer2, dummyServer3]);
+  const assertor = function (
+    val?: Record<string, {version?: string | Buffer | null, error?: Error}> | null
+  ) {
+    t.deepEqual(
+      {
+        "dummyServer1:undefined": { version: "1.0.0" },
+        "dummyServer2:undefined": { version: "2.0.0" },
+        "dummyServer3:undefined": { version: "3.0.0" },
+      },
+      val
+    );
+  };
+
+  return client.versionAllWithErrors().then(function (res) {
+    assertor(res.values);
+  });
+});
+
+tap.only("VersionAllWithErrorsSomeFailed", function (t) {
+  const dummyServer1 = makeDummyVersionServer(t, "dummyServer1", "1.0.0");
+  const dummyServer2 = makeDummyVersionServer(t, "dummyServer2", "2.0.0");
+  dummyServer2.write = function () {
+    dummyServer2.error({
+      name: "ErrorName",
+      message: "This is an expected error.",
+    });
+  };
+  const dummyServer3 = makeDummyVersionServer(t, "dummyServer3", "3.0.0");
+
+  const client = makeClient([dummyServer1, dummyServer2, dummyServer3]);
+  const assertor = function (
+    val?: Record<string, {version?: string | Buffer | null, error?: Error}> | null
+  ) {
+    t.deepEqual(
+      {
+        "dummyServer1:undefined": { version: "1.0.0" },
+        "dummyServer2:undefined": { error: { name: "ErrorName", message: "This is an expected error." } },
+        "dummyServer3:undefined": { version: "3.0.0" },
+      },
+      val
+    );
+  };
+
+
+  return client.versionAllWithErrors().then(function (res) {
+    assertor(res.values);
+  });
+});
