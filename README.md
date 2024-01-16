@@ -107,6 +107,27 @@ Note that values are always returned as `Buffer`s, regardless of whether a
   * `err` : error
   * `val` : value retrieved as a `Buffer`
 
+### Pluggable Hashing
+
+MemJS supports pluggable hashing algorithms. You can set the hashing algorithm
+by setting the `HashRing` property on a `Client` instance. For example:
+
+``` javascript
+var memjs = require('memjs');
+var php7hashRing = require('memjs/hashring/Php7Memcache4CompatibleHashRing');
+var crc32 = require('memjs/hashring/algorithms/Crc32');
+
+var servers = ['localhost:11211', 'localhost:11212', 'localhost:11213'];
+
+var client = memjs.Client.create(servers);
+
+// the php 7 hashring requires a hashing algorithm, here we are using crc32
+var hashRing = new php7hashRing(servers, crc32)
+client.HashRing = hashRing;
+```
+
+The `Php7Memcache4CompatibleHashRing` and related `Crc32` algorithm are provided.
+
 ## Contributing
 
 The best way to contribute to the project is by reporting bugs and testing unpublished

@@ -1,0 +1,30 @@
+export = Server;
+declare class Server extends events {
+    constructor(host: any, port: any, username: any, password: any, options: any);
+    responseBuffer: Buffer;
+    host: any;
+    port: any;
+    connected: boolean;
+    timeoutSet: boolean;
+    connectCallbacks: any[];
+    responseCallbacks: {};
+    requestTimeouts: any[];
+    errorCallbacks: {};
+    options: any;
+    username: any;
+    password: any;
+    onConnect(func: any): void;
+    onResponse(seq: any, func: any): void;
+    respond(response: any): void;
+    onError(seq: any, func: any): void;
+    error(err: any): void;
+    listSasl(): void;
+    saslAuth(): void;
+    appendToBuffer(dataBuf: any): Buffer;
+    responseHandler(dataBuf: any): void;
+    sock(sasl: any, go: any): void;
+    write(blob: any): void;
+    writeSASL(blob: any): void;
+    close(): void;
+}
+import events = require("events");
