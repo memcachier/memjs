@@ -118,12 +118,14 @@ export class Server extends events.EventEmitter {
 
   error(err: Error) {
     const errcalls = this.errorCallbacks;
+    // reset all states except host, port, options, username, password
+    this.responseBuffer = Buffer.from([]);
+    this.connected = false;
+    this.timeoutSet = false;
     this.connectCallbacks = [];
     this.responseCallbacks = {};
     this.requestTimeouts = [];
     this.errorCallbacks = {};
-    this.timeoutSet = false;
-    this.responseBuffer = Buffer.from([]);
     if (this._socket) {
       this._socket.destroy();
       delete this._socket;
@@ -290,6 +292,8 @@ export class Server extends events.EventEmitter {
 
   close() {
     if (this._socket) {
+      // TODO: this should probably be destroy() in at least some, if not all,
+      // cases.
       this._socket.end();
     }
   }
@@ -319,10 +323,6 @@ const timeoutHandler = function (server: Server, sock: net.Socket) {
 
   if (soonestTimeout <= now) {
     // timeout occurred!
-    sock.end();
-    server.connected = false;
-    server._socket = undefined;
-    server.timeoutSet = false;
     server.error(new Error("socket timed out waiting on response."));
   } else {
     // no timeout! Setup next one.
